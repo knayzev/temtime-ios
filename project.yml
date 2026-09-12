@@ -1,0 +1,27 @@
+name: FocusTimer
+options:
+  bundleIdPrefix: com.focustimer
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  FocusTimer:
+    type: application
+    platform: iOS
+    sources:
+      - path: FocusTimer
+    info:
+      properties:
+        UILaunchScreen: {}
+        CFBundleDisplayName: Focus Timer
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.focustimer.app
+        PRODUCT_NAME: FocusTimer
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
