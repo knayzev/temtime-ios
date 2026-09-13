@@ -25,6 +25,45 @@ let motivationalQuotes = [
     "Единственный, кто может остановить тебя, — это ты сам. — неизвестный автор"
 ]
 
+let workDonePhrases = [
+    "Пора отдыхать! Выпейте чашку кофе или чая.",
+    "Работа завершена. Самое время немного отдохнуть.",
+    "Отличная работа! Теперь можно расслабиться и передохнуть.",
+    "Время отдыха началось. Встаньте, разомнитесь, подышите свежим воздухом.",
+    "Вы молодец! Сделайте паузу — заварите чай и отдохните.",
+    "Рабочий блок завершён. Дайте глазам и телу отдохнуть.",
+    "Пора сделать перерыв. Прогуляйтесь или выпейте воды.",
+    "Работа окончена — насладитесь заслуженным отдыхом.",
+    "Отлично поработали! Теперь немного расслабьтесь.",
+    "Время выдохнуть. Отдых начался — используйте его с пользой."
+]
+
+let restDonePhrases = [
+    "Пора работать! Желаю удачи — всё получится.",
+    "Отдых завершён. Приступим к делу с новыми силами.",
+    "Время снова сосредоточиться. У вас точно получится!",
+    "Перерыв окончен. Вперёд, к новым результатам!",
+    "Пора возвращаться к работе. Вы справитесь!",
+    "Отдохнули — теперь за дело! Удачи вам.",
+    "Рабочее время началось. Сфокусируйтесь и действуйте.",
+    "Время продуктивности! Начинаем работать.",
+    "Перерыв закончен — покажите, на что способны!",
+    "Снова в бой! Желаю продуктивной работы."
+]
+
+private func pickCheerfulFemaleRussianVoice() -> AVSpeechSynthesisVoice? {
+    let ruVoices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "ru-RU" }
+    if #available(iOS 17.0, *) {
+        if let female = ruVoices.first(where: { $0.gender == .female }) {
+            return female
+        }
+    }
+    // Milena is Apple's built-in Russian voice and is female.
+    return ruVoices.first(where: { $0.name.localizedCaseInsensitiveContains("milena") })
+        ?? ruVoices.first
+        ?? AVSpeechSynthesisVoice(language: "ru-RU")
+}
+
 @MainActor
 final class TimerViewModel: ObservableObject {
     @Published private(set) var phase: TimerPhase = .work
@@ -122,7 +161,9 @@ final class TimerViewModel: ObservableObject {
 
     private func speak(_ text: String) {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU")
+        utterance.voice = pickCheerfulFemaleRussianVoice()
+        utterance.pitchMultiplier = 1.1
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.02
         speechSynthesizer.speak(utterance)
     }
 
@@ -141,6 +182,12 @@ final class TimerViewModel: ObservableObject {
         }
         start()
         repeatAlert(times: finishedPhase == .work ? 3 : 1)
+        if prefs.voiceAnnounceEnabled {
+            let phrase = finishedPhase == .work ? workDonePhrases.randomElement() : restDonePhrases.randomElement()
+            if let phrase {
+                speak(phrase)
+            }
+        }
     }
 
     private func repeatAlert(times: Int) {
