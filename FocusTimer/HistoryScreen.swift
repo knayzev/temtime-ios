@@ -64,8 +64,15 @@ private struct HistoryRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            Text(String(format: "%d:%02d", entry.durationSeconds / 60, entry.durationSeconds % 60))
-                .font(.subheadline)
+            HStack(spacing: 8) {
+                Text(String(format: "%d:%02d", entry.durationSeconds / 60, entry.durationSeconds % 60))
+                    .font(.subheadline)
+                if !entry.category.isEmpty {
+                    Text("• \(entry.category)")
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
+                }
+            }
 
             TextField("Комментарий", text: $comment)
                 .textFieldStyle(.roundedBorder)

@@ -18,6 +18,16 @@ struct TimerScreen: View {
                 .font(.system(size: 64, weight: .bold, design: .rounded))
                 .monospacedDigit()
 
+            let categories = PrefsManager.shared.categories
+            if !categories.isEmpty {
+                Picker("Чем занимаетесь", selection: $viewModel.currentCategory) {
+                    ForEach(categories, id: \.self) { category in
+                        Text(category).tag(category)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
             HStack(spacing: 16) {
                 Button(viewModel.isRunning ? "Пауза" : "Старт") {
                     if viewModel.isRunning {

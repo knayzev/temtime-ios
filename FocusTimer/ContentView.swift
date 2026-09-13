@@ -15,6 +15,11 @@ struct ContentView: View {
                     Label("История", systemImage: "clock.arrow.circlepath")
                 }
 
+            StatsScreen()
+                .tabItem {
+                    Label("Статистика", systemImage: "chart.bar.fill")
+                }
+
             SettingsScreen()
                 .tabItem {
                     Label("Настройки", systemImage: "gearshape.fill")

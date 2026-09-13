@@ -7,7 +7,39 @@ struct SessionRecord: Codable, Identifiable {
     let durationSeconds: Int
     let interrupted: Bool
     var comment: String
+    var category: String
+
+    init(
+        id: TimeInterval,
+        phase: String,
+        startTime: TimeInterval,
+        durationSeconds: Int,
+        interrupted: Bool,
+        comment: String,
+        category: String = ""
+    ) {
+        self.id = id
+        self.phase = phase
+        self.startTime = startTime
+        self.durationSeconds = durationSeconds
+        self.interrupted = interrupted
+        self.comment = comment
+        self.category = category
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(TimeInterval.self, forKey: .id)
+        phase = try container.decode(String.self, forKey: .phase)
+        startTime = try container.decode(TimeInterval.self, forKey: .startTime)
+        durationSeconds = try container.decode(Int.self, forKey: .durationSeconds)
+        interrupted = try container.decode(Bool.self, forKey: .interrupted)
+        comment = try container.decode(String.self, forKey: .comment)
+        category = try container.decodeIfPresent(String.self, forKey: .category) ?? ""
+    }
 }
+
+let defaultCategories = ["Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое"]
 
 final class PrefsManager {
     static let shared = PrefsManager()
@@ -34,6 +66,7 @@ final class PrefsManager {
         static let dataConsentGiven = "data_consent_given"
         static let stepsEnabled = "steps_enabled"
         static let history = "session_history"
+        static let categories = "categories"
     }
 
     var userName: String {
@@ -131,6 +164,11 @@ final class PrefsManager {
         set { defaults.set(newValue, forKey: Keys.isWorking) }
     }
 
+    var categories: [String] {
+        get { defaults.stringArray(forKey: Keys.categories) ?? defaultCategories }
+        set { defaults.set(newValue, forKey: Keys.categories) }
+    }
+
     var photoURL: URL? {
         guard let name = photoFileName else { return nil }
         return FileManager.default
@@ -187,5 +225,105 @@ final class PrefsManager {
             current[index].comment = comment
             history = current
         }
+    }
+
+    func exportAllData() -> String {
+        let profile: [String: Any] = [
+            "userName": userName,
+            "lastName": lastName,
+            "email": email,
+            "dataConsentGiven": dataConsentGiven,
+            "weightKg": weightKg,
+            "heightCm": heightCm,
+            "age": age,
+            "gender": gender,
+            "maritalStatus": maritalStatus,
+            "wakeTime": wakeTime,
+            "bedTime": bedTime,
+            "isWorking": isWorking
+        ]
+        let settings: [String: Any] = [
+            "workMinutes": workMinutes,
+            "restMinutes": restMinutes,
+            "soundEnabled": soundEnabled,
+            "vibrationEnabled": vibrationEnabled,
+            "keepScreenOn": keepScreenOn,
+            "categories": categories
+        ]
+        let historyArray: [[String: Any]] = history.map { entry in
+            [
+                "id": entry.id,
+                "phase": entry.phase,
+                "startTime": entry.startTime,
+                "durationSeconds": entry.durationSeconds,
+                "interrupted": entry.interrupted,
+                "comment": entry.comment,
+                "category": entry.category
+            ]
+        }
+        let root: [String: Any] = [
+            "exportVersion": 1,
+            "profile": profile,
+            "settings": settings,
+            "history": historyArray
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return string
+    }
+
+    func importAllData(_ json: String) -> Bool {
+        guard let data = json.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+        if let profile = root["profile"] as? [String: Any] {
+            if let v = profile["userName"] as? String { userName = v }
+            if let v = profile["lastName"] as? String { lastName = v }
+            if let v = profile["email"] as? String { email = v }
+            if let v = profile["dataConsentGiven"] as? Bool { dataConsentGiven = v }
+            if let v = profile["weightKg"] as? String { weightKg = v }
+            if let v = profile["heightCm"] as? String { heightCm = v }
+            if let v = profile["age"] as? String { age = v }
+            if let v = profile["gender"] as? String { gender = v }
+            if let v = profile["maritalStatus"] as? String { maritalStatus = v }
+            if let v = profile["wakeTime"] as? String { wakeTime = v }
+            if let v = profile["bedTime"] as? String { bedTime = v }
+            if let v = profile["isWorking"] as? Bool { isWorking = v }
+        }
+        if let settingsDict = root["settings"] as? [String: Any] {
+            if let v = settingsDict["workMinutes"] as? Int { workMinutes = v }
+            if let v = settingsDict["restMinutes"] as? Int { restMinutes = v }
+            if let v = settingsDict["soundEnabled"] as? Bool { soundEnabled = v }
+            if let v = settingsDict["vibrationEnabled"] as? Bool { vibrationEnabled = v }
+            if let v = settingsDict["keepScreenOn"] as? Bool { keepScreenOn = v }
+            if let v = settingsDict["categories"] as? [String] { categories = v }
+        }
+        if let historyArray = root["history"] as? [[String: Any]] {
+            let imported: [SessionRecord] = historyArray.compactMap { obj in
+                guard let id = obj["id"] as? TimeInterval,
+                      let phase = obj["phase"] as? String,
+                      let startTime = obj["startTime"] as? TimeInterval,
+                      let durationSeconds = obj["durationSeconds"] as? Int,
+                      let interrupted = obj["interrupted"] as? Bool else {
+                    return nil
+                }
+                let comment = obj["comment"] as? String ?? ""
+                let category = obj["category"] as? String ?? ""
+                return SessionRecord(
+                    id: id,
+                    phase: phase,
+                    startTime: startTime,
+                    durationSeconds: durationSeconds,
+                    interrupted: interrupted,
+                    comment: comment,
+                    category: category
+                )
+            }
+            history = imported.sorted { $0.startTime > $1.startTime }
+        }
+        return true
     }
 }

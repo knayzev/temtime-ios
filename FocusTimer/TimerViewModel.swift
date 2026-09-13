@@ -14,6 +14,7 @@ final class TimerViewModel: ObservableObject {
     @Published private(set) var workMinutes: Int
     @Published private(set) var restMinutes: Int
     @Published var currentComment: String = ""
+    @Published var currentCategory: String = ""
 
     private var timer: Timer?
     private let prefs = PrefsManager.shared
@@ -25,6 +26,7 @@ final class TimerViewModel: ObservableObject {
         workMinutes = work
         restMinutes = rest
         secondsLeft = work * 60
+        currentCategory = prefs.categories.first ?? ""
     }
 
     func setWorkMinutes(_ minutes: Int) {
@@ -102,7 +104,8 @@ final class TimerViewModel: ObservableObject {
             startTime: start,
             durationSeconds: elapsedSeconds,
             interrupted: interrupted,
-            comment: currentComment
+            comment: currentComment,
+            category: currentCategory
         )
         prefs.addHistoryEntry(entry)
         sessionStartTime = nil
