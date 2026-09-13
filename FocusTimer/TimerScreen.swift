@@ -3,7 +3,8 @@ import SwiftUI
 struct TimerScreen: View {
     @ObservedObject var viewModel: TimerViewModel
     @StateObject private var stepCounter = LiveStepCounter()
-    @State private var showComment = false
+    @State private var showCommentEditor = false
+    @State private var draftComment = ""
 
     @State private var presets = PrefsManager.shared.presets
     @State private var editingPreset: TimerPreset?
@@ -108,15 +109,47 @@ struct TimerScreen: View {
                 .buttonStyle(.bordered)
             }
 
-            Button(showComment ? "Скрыть комментарий" : "Добавить комментарий") {
-                showComment.toggle()
-            }
-            .font(.footnote)
-
-            if showComment {
-                TextField("Комментарий к сессии", text: $viewModel.currentComment)
-                    .textFieldStyle(.roundedBorder)
+            if !showCommentEditor {
+                if viewModel.currentComment.isEmpty {
+                    Button("Добавить комментарий") {
+                        draftComment = viewModel.currentComment
+                        showCommentEditor = true
+                    }
+                    .font(.footnote)
+                } else {
+                    HStack {
+                        Text(viewModel.currentComment)
+                            .font(.subheadline)
+                        Spacer()
+                        Button {
+                            draftComment = viewModel.currentComment
+                            showCommentEditor = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     .padding(.horizontal, 24)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    TextField("Комментарий к сессии", text: $draftComment)
+                        .textFieldStyle(.roundedBorder)
+
+                    HStack {
+                        Spacer()
+                        Button("Отмена") {
+                            showCommentEditor = false
+                        }
+                        Button("Сохранить") {
+                            viewModel.currentComment = draftComment
+                            showCommentEditor = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppColors.primary)
+                    }
+                }
+                .padding(.horizontal, 24)
             }
 
             if !viewModel.isRunning {

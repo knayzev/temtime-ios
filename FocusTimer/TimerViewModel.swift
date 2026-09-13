@@ -26,55 +26,55 @@ let motivationalQuotes = [
 ]
 
 let workDonePhrasesRU = [
-    "Пора отдыхать! Выпейте чашку кофе или чая.",
-    "Работа завершена. Самое время немного отдохнуть.",
-    "Отличная работа! Теперь можно расслабиться и передохнуть.",
-    "Время отдыха началось. Встаньте, разомнитесь, подышите свежим воздухом.",
-    "Вы молодец! Сделайте паузу — заварите чай и отдохните.",
-    "Рабочий блок завершён. Дайте глазам и телу отдохнуть.",
-    "Пора сделать перерыв. Прогуляйтесь или выпейте воды.",
-    "Работа окончена — насладитесь заслуженным отдыхом.",
-    "Отлично поработали! Теперь немного расслабьтесь.",
-    "Время выдохнуть. Отдых начался — используйте его с пользой."
+    "Хэй, привет! Ну что, поработал? Пора бы и отдохнуть!",
+    "Стоп машина! Работа подождёт — самое время выдохнуть.",
+    "Есть! Рабочий блок закрыт. Отдых, встречай!",
+    "Отличная работа. Дайте себе немного тишины и покоя.",
+    "Всё, шабаш! Заслуженный перерыв уже ждёт.",
+    "Мозг просит паузы — дайте ему то, что он хочет.",
+    "Рабочий этап завершён. Забота о себе — тоже часть продуктивности.",
+    "Ты справился! Теперь можно и ноги на стол.",
+    "Тайм-аут! Тело и голова скажут спасибо за пару минут отдыха.",
+    "Готово! Сделайте паузу — вы это заслужили."
 ]
 
 let restDonePhrasesRU = [
-    "Пора работать! Желаю удачи — всё получится.",
-    "Отдых завершён. Приступим к делу с новыми силами.",
-    "Время снова сосредоточиться. У вас точно получится!",
-    "Перерыв окончен. Вперёд, к новым результатам!",
-    "Пора возвращаться к работе. Вы справитесь!",
-    "Отдохнули — теперь за дело! Удачи вам.",
-    "Рабочее время началось. Сфокусируйтесь и действуйте.",
-    "Время продуктивности! Начинаем работать.",
-    "Перерыв закончен — покажите, на что способны!",
-    "Снова в бой! Желаю продуктивной работы."
+    "Так, так, время пришло работать! Вперёд и с песней!",
+    "Отдых закончен, будильник для мозга прозвенел. За работу!",
+    "Перерыв — в архив. Погнали делать великие дела!",
+    "Время снова включиться в работу. У вас точно получится.",
+    "Батарейка заряжена на сто процентов — пора выдавать результат!",
+    "Отдохнули — красота. Теперь покажем, на что способны!",
+    "Рабочий режим активирован. Приступаем!",
+    "Хватит бездельничать — шучу! Но работать и правда пора.",
+    "Соберитесь — сейчас будет продуктивно и красиво.",
+    "Вперёд, покоритель дедлайнов! Работа ждёт."
 ]
 
 let workDonePhrasesEN = [
-    "Time to rest! Grab a cup of coffee or tea.",
-    "Work session complete. Time for a well-deserved break.",
-    "Great job! Now relax and recharge for a bit.",
-    "Rest time has started. Stand up, stretch, get some fresh air.",
-    "Well done! Take a break — brew some tea and unwind.",
-    "Work block finished. Give your eyes and body a rest.",
-    "Time for a break. Take a walk or drink some water.",
-    "Work is done — enjoy your well-earned rest.",
-    "Great work! Time to relax a little.",
-    "Time to breathe out. Rest has begun — make the most of it."
+    "Hey there! You worked hard, huh? Time to rest!",
+    "Stop the presses! Work can wait — time to breathe out.",
+    "Done and done! Work block closed. Hello, rest!",
+    "Great work. Give yourself a little peace and quiet.",
+    "That's a wrap! Your well-earned break is waiting.",
+    "Your brain is asking for a pause — give it what it wants.",
+    "Work block complete. Self-care is productivity too.",
+    "You did it! Time to kick back for a bit.",
+    "Time out! Your body and mind will thank you for a short rest.",
+    "All done! Take a break — you've earned it."
 ]
 
 let restDonePhrasesEN = [
-    "Time to work! Good luck — you've got this.",
-    "Break's over. Let's get back to it with fresh energy.",
-    "Time to focus again. You can definitely do this!",
-    "Break is over. Onward to new results!",
-    "Time to get back to work. You'll manage just fine!",
-    "Rested up — now let's get to it! Good luck.",
-    "Work time has started. Focus and take action.",
-    "Time to be productive! Let's start working.",
-    "Break's over — show what you're capable of!",
-    "Back into it! Wishing you a productive work session."
+    "Alright, alright, it's time to work! Onward, with a song!",
+    "Break's over, the brain alarm just went off. Let's work!",
+    "Break — archived. Let's go make great things happen!",
+    "Time to get back into it. You've got this.",
+    "Battery's at one hundred percent — time to deliver!",
+    "Nicely rested. Now let's show what you can do!",
+    "Work mode: activated. Let's go!",
+    "Enough lounging around — just kidding! But it really is time to work.",
+    "Get focused — this is about to be productive and great.",
+    "Onward, deadline conqueror! Work awaits."
 ]
 
 private let femaleVoiceNames = ["milena", "samantha", "ava", "allison", "susan", "nicky", "victoria", "kate", "anna", "tessa"]
