@@ -10,6 +10,7 @@ targets:
     sources:
       - path: FocusTimer
     info:
+      path: FocusTimer/Info.plist
       properties:
         UILaunchScreen: {}
         CFBundleDisplayName: Focus Timer

@@ -1,4 +1,5 @@
 FocusTimer.xcodeproj/
+FocusTimer/Info.plist
 build/
 DerivedData/
 .build/
