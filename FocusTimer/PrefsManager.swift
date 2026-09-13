@@ -26,6 +26,7 @@ final class PrefsManager {
         static let heightCm = "height_cm"
         static let age = "age"
         static let maritalStatus = "marital_status"
+        static let gender = "gender"
         static let wakeTime = "wake_time"
         static let bedTime = "bed_time"
         static let isWorking = "is_working"
@@ -108,6 +109,11 @@ final class PrefsManager {
     var maritalStatus: String {
         get { defaults.string(forKey: Keys.maritalStatus) ?? "" }
         set { defaults.set(newValue, forKey: Keys.maritalStatus) }
+    }
+
+    var gender: String {
+        get { defaults.string(forKey: Keys.gender) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.gender) }
     }
 
     var wakeTime: String {

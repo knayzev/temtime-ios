@@ -10,6 +10,7 @@ struct ProfileScreen: View {
     @State private var heightCm = PrefsManager.shared.heightCm
     @State private var age = PrefsManager.shared.age
     @State private var maritalStatus = PrefsManager.shared.maritalStatus
+    @State private var gender = PrefsManager.shared.gender
     @State private var isWorking = PrefsManager.shared.isWorking
     @State private var wakeTime = Date()
     @State private var bedTime = Date()
@@ -24,6 +25,8 @@ struct ProfileScreen: View {
         "Разведён(а)",
         "Вдовец / вдова"
     ]
+
+    private let genderOptions = ["Мужской", "Женский", "Не указывать"]
 
     var body: some View {
         Form {
@@ -94,6 +97,14 @@ struct ProfileScreen: View {
             }
 
             Section("Образ жизни") {
+                Picker("Пол", selection: $gender) {
+                    ForEach(genderOptions, id: \.self) { option in
+                        Text(option).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: gender) { PrefsManager.shared.gender = $0 }
+
                 Picker("Семейное положение", selection: $maritalStatus) {
                     ForEach(maritalOptions, id: \.self) { option in
                         Text(option).tag(option)
@@ -115,6 +126,9 @@ struct ProfileScreen: View {
         .onAppear {
             if maritalStatus.isEmpty {
                 maritalStatus = maritalOptions[0]
+            }
+            if gender.isEmpty {
+                gender = genderOptions[0]
             }
             wakeTime = Self.timeStringToDate(PrefsManager.shared.wakeTime)
             bedTime = Self.timeStringToDate(PrefsManager.shared.bedTime)
