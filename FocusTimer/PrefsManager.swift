@@ -66,6 +66,19 @@ struct SessionRecord: Codable, Identifiable {
 
 let defaultCategories = ["Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое"]
 
+struct DayPlan: Codable {
+    var tasks: String = ""
+    var priority: String = ""
+    var dontForget: String = ""
+    var updatedAt: TimeInterval = 0
+
+    var isEmpty: Bool {
+        tasks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && priority.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && dontForget.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
 final class PrefsManager {
     static let shared = PrefsManager()
     private let defaults = UserDefaults.standard
@@ -110,6 +123,7 @@ final class PrefsManager {
         static let voiceLanguage = "voice_language"
         static let daySchedule = "day_schedule"
         static let lifestyleAnswers = "lifestyle_answers"
+        static let dayPlan = "day_plan"
     }
 
     var userName: String {
@@ -244,6 +258,21 @@ final class PrefsManager {
     var lifestyleAnswers: [String: [String]] {
         get { (defaults.dictionary(forKey: Keys.lifestyleAnswers) as? [String: [String]]) ?? [:] }
         set { defaults.set(newValue, forKey: Keys.lifestyleAnswers) }
+    }
+
+    var dayPlan: DayPlan {
+        get {
+            guard let data = defaults.data(forKey: Keys.dayPlan),
+                  let decoded = try? JSONDecoder().decode(DayPlan.self, from: data) else {
+                return DayPlan()
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: Keys.dayPlan)
+            }
+        }
     }
 
     var accountPasswordHash: String {
