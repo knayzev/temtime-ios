@@ -12,6 +12,14 @@ final class PrefsManager {
         static let sound = "sound_enabled"
         static let vibration = "vibration_enabled"
         static let keepScreenOn = "keep_screen_on"
+        static let email = "email"
+        static let weightKg = "weight_kg"
+        static let heightCm = "height_cm"
+        static let age = "age"
+        static let maritalStatus = "marital_status"
+        static let wakeTime = "wake_time"
+        static let bedTime = "bed_time"
+        static let isWorking = "is_working"
     }
 
     var userName: String {
@@ -47,6 +55,46 @@ final class PrefsManager {
     var keepScreenOn: Bool {
         get { defaults.object(forKey: Keys.keepScreenOn) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Keys.keepScreenOn) }
+    }
+
+    var email: String {
+        get { defaults.string(forKey: Keys.email) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.email) }
+    }
+
+    var weightKg: String {
+        get { defaults.string(forKey: Keys.weightKg) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.weightKg) }
+    }
+
+    var heightCm: String {
+        get { defaults.string(forKey: Keys.heightCm) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.heightCm) }
+    }
+
+    var age: String {
+        get { defaults.string(forKey: Keys.age) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.age) }
+    }
+
+    var maritalStatus: String {
+        get { defaults.string(forKey: Keys.maritalStatus) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.maritalStatus) }
+    }
+
+    var wakeTime: String {
+        get { defaults.string(forKey: Keys.wakeTime) ?? "07:00" }
+        set { defaults.set(newValue, forKey: Keys.wakeTime) }
+    }
+
+    var bedTime: String {
+        get { defaults.string(forKey: Keys.bedTime) ?? "23:00" }
+        set { defaults.set(newValue, forKey: Keys.bedTime) }
+    }
+
+    var isWorking: Bool {
+        get { defaults.object(forKey: Keys.isWorking) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Keys.isWorking) }
     }
 
     var photoURL: URL? {
