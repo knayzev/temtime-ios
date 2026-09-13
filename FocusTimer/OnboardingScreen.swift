@@ -58,8 +58,7 @@ struct OnboardingScreen: View {
             }
 
             Section {
-                Button("Готово") {
-                    PrefsManager.shared.isOnboarded = true
+                Button("Далее") {
                     onComplete()
                 }
                 .frame(maxWidth: .infinity)

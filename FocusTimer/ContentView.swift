@@ -3,6 +3,7 @@ import SwiftUI
 private enum RootScreen {
     case auth
     case onboarding
+    case lifestyle
     case main
 }
 
@@ -29,7 +30,9 @@ struct ContentView: View {
                     }
                 )
             case .onboarding:
-                OnboardingScreen(onComplete: { screen = .main })
+                OnboardingScreen(onComplete: { screen = .lifestyle })
+            case .lifestyle:
+                LifestyleQuestionsScreen(onComplete: { screen = .main })
             case .main:
                 MainTabView(onLogout: {
                     PrefsManager.shared.isLoggedIn = false

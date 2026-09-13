@@ -128,6 +128,12 @@ struct ProfileScreen: View {
                     Text("• \(tip)")
                 }
             }
+
+            if !PrefsManager.shared.daySchedule.isEmpty {
+                Section("Ваш график дня") {
+                    Text(PrefsManager.shared.daySchedule)
+                }
+            }
         }
         .onAppear {
             if maritalStatus.isEmpty {

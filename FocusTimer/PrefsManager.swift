@@ -100,6 +100,8 @@ final class PrefsManager {
         static let waterUnit = "water_unit"
         static let waterCount = "water_count"
         static let presets = "timer_presets"
+        static let daySchedule = "day_schedule"
+        static let lifestyleAnswers = "lifestyle_answers"
     }
 
     var userName: String {
@@ -200,6 +202,16 @@ final class PrefsManager {
     var categories: [String] {
         get { defaults.stringArray(forKey: Keys.categories) ?? defaultCategories }
         set { defaults.set(newValue, forKey: Keys.categories) }
+    }
+
+    var daySchedule: String {
+        get { defaults.string(forKey: Keys.daySchedule) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.daySchedule) }
+    }
+
+    var lifestyleAnswers: [String: [String]] {
+        get { (defaults.dictionary(forKey: Keys.lifestyleAnswers) as? [String: [String]]) ?? [:] }
+        set { defaults.set(newValue, forKey: Keys.lifestyleAnswers) }
     }
 
     var accountPasswordHash: String {
