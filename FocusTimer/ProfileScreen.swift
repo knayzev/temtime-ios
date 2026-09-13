@@ -26,7 +26,7 @@ struct ProfileScreen: View {
         "Вдовец / вдова"
     ]
 
-    private let genderOptions = ["Мужской", "Женский", "Не указывать"]
+    private let genderOptions = ["Мужской", "Женский"]
 
     var body: some View {
         Form {
@@ -121,6 +121,12 @@ struct ProfileScreen: View {
 
                 Toggle("Сейчас работаю", isOn: $isWorking)
                     .onChange(of: isWorking) { PrefsManager.shared.isWorking = $0 }
+            }
+
+            Section("Персональные рекомендации") {
+                ForEach(buildAdvice(weightKg: weightKg, heightCm: heightCm, age: age, gender: gender), id: \.self) { tip in
+                    Text("• \(tip)")
+                }
             }
         }
         .onAppear {

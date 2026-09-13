@@ -1,4 +1,25 @@
 import Foundation
+import CryptoKit
+
+func sha256(_ text: String) -> String {
+    let digest = SHA256.hash(data: Data(text.utf8))
+    return digest.map { String(format: "%02x", $0) }.joined()
+}
+
+struct TimerPreset: Codable, Identifiable {
+    var id: String
+    var label: String
+    var workMinutes: Int
+    var restMinutes: Int
+    var comment: String = ""
+}
+
+let defaultPresets = [
+    TimerPreset(id: "preset_work25", label: "Работа 25 мин", workMinutes: 25, restMinutes: 5),
+    TimerPreset(id: "preset_deep50", label: "Глубокая работа 50 мин", workMinutes: 50, restMinutes: 10),
+    TimerPreset(id: "preset_study45", label: "Учёба 45 мин", workMinutes: 45, restMinutes: 15),
+    TimerPreset(id: "preset_sprint15", label: "Спринт 15 мин", workMinutes: 15, restMinutes: 5)
+]
 
 struct SessionRecord: Codable, Identifiable {
     let id: TimeInterval
@@ -67,6 +88,18 @@ final class PrefsManager {
         static let stepsEnabled = "steps_enabled"
         static let history = "session_history"
         static let categories = "categories"
+        static let passwordHash = "account_password_hash"
+        static let isRegistered = "is_registered"
+        static let isLoggedIn = "is_logged_in"
+        static let isOnboarded = "is_onboarded"
+        static let breakfastTime = "breakfast_time"
+        static let lunchTime = "lunch_time"
+        static let dinnerTime = "dinner_time"
+        static let workHoursPerDay = "work_hours_per_day"
+        static let mealsPerDay = "meals_per_day"
+        static let waterUnit = "water_unit"
+        static let waterCount = "water_count"
+        static let presets = "timer_presets"
     }
 
     var userName: String {
@@ -169,6 +202,76 @@ final class PrefsManager {
         set { defaults.set(newValue, forKey: Keys.categories) }
     }
 
+    var accountPasswordHash: String {
+        get { defaults.string(forKey: Keys.passwordHash) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.passwordHash) }
+    }
+
+    var isRegistered: Bool {
+        get { defaults.object(forKey: Keys.isRegistered) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.isRegistered) }
+    }
+
+    var isLoggedIn: Bool {
+        get { defaults.object(forKey: Keys.isLoggedIn) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.isLoggedIn) }
+    }
+
+    var isOnboarded: Bool {
+        get { defaults.object(forKey: Keys.isOnboarded) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.isOnboarded) }
+    }
+
+    var breakfastTime: String {
+        get { defaults.string(forKey: Keys.breakfastTime) ?? "08:00" }
+        set { defaults.set(newValue, forKey: Keys.breakfastTime) }
+    }
+
+    var lunchTime: String {
+        get { defaults.string(forKey: Keys.lunchTime) ?? "13:00" }
+        set { defaults.set(newValue, forKey: Keys.lunchTime) }
+    }
+
+    var dinnerTime: String {
+        get { defaults.string(forKey: Keys.dinnerTime) ?? "19:00" }
+        set { defaults.set(newValue, forKey: Keys.dinnerTime) }
+    }
+
+    var workHoursPerDay: Int {
+        get { defaults.object(forKey: Keys.workHoursPerDay) as? Int ?? 8 }
+        set { defaults.set(newValue, forKey: Keys.workHoursPerDay) }
+    }
+
+    var mealsPerDay: Int {
+        get { defaults.object(forKey: Keys.mealsPerDay) as? Int ?? 3 }
+        set { defaults.set(newValue, forKey: Keys.mealsPerDay) }
+    }
+
+    var waterUnit: String {
+        get { defaults.string(forKey: Keys.waterUnit) ?? "Бутылки" }
+        set { defaults.set(newValue, forKey: Keys.waterUnit) }
+    }
+
+    var waterCount: Int {
+        get { defaults.object(forKey: Keys.waterCount) as? Int ?? 4 }
+        set { defaults.set(newValue, forKey: Keys.waterCount) }
+    }
+
+    var presets: [TimerPreset] {
+        get {
+            guard let data = defaults.data(forKey: Keys.presets),
+                  let decoded = try? JSONDecoder().decode([TimerPreset].self, from: data) else {
+                return defaultPresets
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: Keys.presets)
+            }
+        }
+    }
+
     var photoURL: URL? {
         guard let name = photoFileName else { return nil }
         return FileManager.default
@@ -240,7 +343,14 @@ final class PrefsManager {
             "maritalStatus": maritalStatus,
             "wakeTime": wakeTime,
             "bedTime": bedTime,
-            "isWorking": isWorking
+            "isWorking": isWorking,
+            "breakfastTime": breakfastTime,
+            "lunchTime": lunchTime,
+            "dinnerTime": dinnerTime,
+            "workHoursPerDay": workHoursPerDay,
+            "mealsPerDay": mealsPerDay,
+            "waterUnit": waterUnit,
+            "waterCount": waterCount
         ]
         let settings: [String: Any] = [
             "workMinutes": workMinutes,
@@ -292,6 +402,13 @@ final class PrefsManager {
             if let v = profile["wakeTime"] as? String { wakeTime = v }
             if let v = profile["bedTime"] as? String { bedTime = v }
             if let v = profile["isWorking"] as? Bool { isWorking = v }
+            if let v = profile["breakfastTime"] as? String { breakfastTime = v }
+            if let v = profile["lunchTime"] as? String { lunchTime = v }
+            if let v = profile["dinnerTime"] as? String { dinnerTime = v }
+            if let v = profile["workHoursPerDay"] as? Int { workHoursPerDay = v }
+            if let v = profile["mealsPerDay"] as? Int { mealsPerDay = v }
+            if let v = profile["waterUnit"] as? String { waterUnit = v }
+            if let v = profile["waterCount"] as? Int { waterCount = v }
         }
         if let settingsDict = root["settings"] as? [String: Any] {
             if let v = settingsDict["workMinutes"] as? Int { workMinutes = v }

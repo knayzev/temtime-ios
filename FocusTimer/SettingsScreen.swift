@@ -22,6 +22,8 @@ private struct JSONTextDocument: FileDocument {
 }
 
 struct SettingsScreen: View {
+    var onLogout: () -> Void = {}
+
     @State private var soundEnabled = PrefsManager.shared.soundEnabled
     @State private var vibrationEnabled = PrefsManager.shared.vibrationEnabled
     @State private var keepScreenOn = PrefsManager.shared.keepScreenOn
@@ -129,6 +131,13 @@ struct SettingsScreen: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+
+                Divider()
+                Button("Выйти из аккаунта", role: .destructive) {
+                    onLogout()
+                }
+                .frame(maxWidth: .infinity)
+                .buttonStyle(.bordered)
             }
             .padding(24)
         }
