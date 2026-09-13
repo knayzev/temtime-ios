@@ -107,6 +107,7 @@ final class PrefsManager {
         static let voiceAnnounceEnabled = "voice_announce_enabled"
         static let voiceAnnounceValue = "voice_announce_value"
         static let voiceAnnounceUnit = "voice_announce_unit"
+        static let voiceLanguage = "voice_language"
         static let daySchedule = "day_schedule"
         static let lifestyleAnswers = "lifestyle_answers"
     }
@@ -143,6 +144,11 @@ final class PrefsManager {
 
     func voiceAnnounceLeadSeconds() -> Int {
         voiceAnnounceUnit == "Минуты" ? voiceAnnounceLeadValue * 60 : voiceAnnounceLeadValue
+    }
+
+    var voiceLanguage: String {
+        get { defaults.string(forKey: Keys.voiceLanguage) ?? "Русский" }
+        set { defaults.set(newValue, forKey: Keys.voiceLanguage) }
     }
 
     var stepsEnabled: Bool {

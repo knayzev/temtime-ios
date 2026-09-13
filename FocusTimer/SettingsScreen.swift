@@ -52,6 +52,7 @@ private struct GeneralSettingsView: View {
     @State private var voiceAnnounceEnabled = PrefsManager.shared.voiceAnnounceEnabled
     @State private var voiceAnnounceValue = String(PrefsManager.shared.voiceAnnounceLeadValue)
     @State private var voiceAnnounceUnit = PrefsManager.shared.voiceAnnounceUnit
+    @State private var voiceLanguage = PrefsManager.shared.voiceLanguage
 
     @State private var showExporter = false
     @State private var showImporter = false
@@ -97,6 +98,12 @@ private struct GeneralSettingsView: View {
                         .pickerStyle(.segmented)
                         .onChange(of: voiceAnnounceUnit) { PrefsManager.shared.voiceAnnounceUnit = $0 }
                     }
+                    Picker("Язык озвучки", selection: $voiceLanguage) {
+                        Text("Русский").tag("Русский")
+                        Text("English").tag("English")
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: voiceLanguage) { PrefsManager.shared.voiceLanguage = $0 }
                 }
 
                 Divider()

@@ -25,7 +25,7 @@ let motivationalQuotes = [
     "Единственный, кто может остановить тебя, — это ты сам. — неизвестный автор"
 ]
 
-let workDonePhrases = [
+let workDonePhrasesRU = [
     "Пора отдыхать! Выпейте чашку кофе или чая.",
     "Работа завершена. Самое время немного отдохнуть.",
     "Отличная работа! Теперь можно расслабиться и передохнуть.",
@@ -38,7 +38,7 @@ let workDonePhrases = [
     "Время выдохнуть. Отдых начался — используйте его с пользой."
 ]
 
-let restDonePhrases = [
+let restDonePhrasesRU = [
     "Пора работать! Желаю удачи — всё получится.",
     "Отдых завершён. Приступим к делу с новыми силами.",
     "Время снова сосредоточиться. У вас точно получится!",
@@ -51,17 +51,63 @@ let restDonePhrases = [
     "Снова в бой! Желаю продуктивной работы."
 ]
 
-private func pickCheerfulFemaleRussianVoice() -> AVSpeechSynthesisVoice? {
-    let ruVoices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "ru-RU" }
-    if #available(iOS 17.0, *) {
-        if let female = ruVoices.first(where: { $0.gender == .female }) {
-            return female
+let workDonePhrasesEN = [
+    "Time to rest! Grab a cup of coffee or tea.",
+    "Work session complete. Time for a well-deserved break.",
+    "Great job! Now relax and recharge for a bit.",
+    "Rest time has started. Stand up, stretch, get some fresh air.",
+    "Well done! Take a break — brew some tea and unwind.",
+    "Work block finished. Give your eyes and body a rest.",
+    "Time for a break. Take a walk or drink some water.",
+    "Work is done — enjoy your well-earned rest.",
+    "Great work! Time to relax a little.",
+    "Time to breathe out. Rest has begun — make the most of it."
+]
+
+let restDonePhrasesEN = [
+    "Time to work! Good luck — you've got this.",
+    "Break's over. Let's get back to it with fresh energy.",
+    "Time to focus again. You can definitely do this!",
+    "Break is over. Onward to new results!",
+    "Time to get back to work. You'll manage just fine!",
+    "Rested up — now let's get to it! Good luck.",
+    "Work time has started. Focus and take action.",
+    "Time to be productive! Let's start working.",
+    "Break's over — show what you're capable of!",
+    "Back into it! Wishing you a productive work session."
+]
+
+private let femaleVoiceNames = ["milena", "samantha", "ava", "allison", "susan", "nicky", "victoria", "kate", "anna", "tessa"]
+private let maleVoiceNames = ["yuri", "aaron", "nathan", "evan", "alex", "fred", "tom", "daniel", "arthur"]
+
+/// Best-effort pick of a natural, gendered voice for the given language. Prefers higher-quality
+/// (enhanced/premium) installed voices over the flat default ones, falling back gracefully when
+/// nothing better is available — it never fails to return *some* voice for the language.
+private func pickVoice(languageCode: String, female: Bool) -> AVSpeechSynthesisVoice? {
+    let candidates = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == languageCode }
+    guard !candidates.isEmpty else { return AVSpeechSynthesisVoice(language: languageCode) }
+
+    func qualityRank(_ voice: AVSpeechSynthesisVoice) -> Int {
+        switch voice.quality {
+        case .premium: return 2
+        case .enhanced: return 1
+        default: return 0
         }
     }
-    // Milena is Apple's built-in Russian voice and is female.
-    return ruVoices.first(where: { $0.name.localizedCaseInsensitiveContains("milena") })
-        ?? ruVoices.first
-        ?? AVSpeechSynthesisVoice(language: "ru-RU")
+    let sorted = candidates.sorted { qualityRank($0) > qualityRank($1) }
+
+    if #available(iOS 17.0, *) {
+        if let genderMatch = sorted.first(where: { $0.gender == (female ? .female : .male) }) {
+            return genderMatch
+        }
+    }
+
+    let names = female ? femaleVoiceNames : maleVoiceNames
+    let nameMatch = sorted.first { voice in
+        let lower = voice.name.lowercased()
+        return names.contains { lower.contains($0) }
+    }
+    return nameMatch ?? sorted.first
 }
 
 @MainActor
@@ -79,6 +125,7 @@ final class TimerViewModel: ObservableObject {
     private let prefs = PrefsManager.shared
     private var sessionStartTime: TimeInterval?
     private var announcedThisPhase = false
+    private var nextVoiceFemale = true
     private let speechSynthesizer = AVSpeechSynthesizer()
 
     init() {
@@ -155,15 +202,27 @@ final class TimerViewModel: ObservableObject {
         let lead = prefs.voiceAnnounceLeadSeconds()
         guard lead > 0, secondsLeft <= lead else { return }
         announcedThisPhase = true
-        let text = phase == .work ? "Приближается время отдыха" : "Приближается время работы"
+        let english = prefs.voiceLanguage == "English"
+        let text: String
+        if english {
+            text = phase == .work ? "Rest time is approaching" : "Work time is approaching"
+        } else {
+            text = phase == .work ? "Приближается время отдыха" : "Приближается время работы"
+        }
         speak(text)
     }
 
     private func speak(_ text: String) {
+        let languageCode = prefs.voiceLanguage == "English" ? "en-US" : "ru-RU"
+        let female = nextVoiceFemale
+        nextVoiceFemale.toggle()
+
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = pickCheerfulFemaleRussianVoice()
-        utterance.pitchMultiplier = 1.1
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.02
+        utterance.voice = pickVoice(languageCode: languageCode, female: female)
+        // A pitch/rate nudge keeps the alternation audible even if the device only has one
+        // installed voice for the language.
+        utterance.pitchMultiplier = female ? 1.1 : 0.85
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * (female ? 1.02 : 0.98)
         speechSynthesizer.speak(utterance)
     }
 
@@ -183,7 +242,13 @@ final class TimerViewModel: ObservableObject {
         start()
         repeatAlert(times: finishedPhase == .work ? 3 : 1)
         if prefs.voiceAnnounceEnabled {
-            let phrase = finishedPhase == .work ? workDonePhrases.randomElement() : restDonePhrases.randomElement()
+            let english = prefs.voiceLanguage == "English"
+            let phrase: String?
+            if finishedPhase == .work {
+                phrase = (english ? workDonePhrasesEN : workDonePhrasesRU).randomElement()
+            } else {
+                phrase = (english ? restDonePhrasesEN : restDonePhrasesRU).randomElement()
+            }
             if let phrase {
                 speak(phrase)
             }
