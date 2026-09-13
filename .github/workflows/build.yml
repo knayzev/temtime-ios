@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-latest
@@ -44,3 +47,13 @@ jobs:
         with:
           name: FocusTimer-ios-simulator
           path: build/Build/Products/Debug-iphonesimulator/FocusTimer.app.zip
+
+      - name: Publish latest release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest build/Build/Products/Debug-iphonesimulator/FocusTimer.app.zip \
+            --title "Latest build (iOS Simulator)" \
+            --notes "Automatically built from the latest commit on main. Unzip and drop FocusTimer.app onto appetize.io/upload to test in a browser." \
+            --latest
