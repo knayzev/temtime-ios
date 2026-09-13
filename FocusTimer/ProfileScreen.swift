@@ -2,6 +2,31 @@ import SwiftUI
 import PhotosUI
 
 struct ProfileScreen: View {
+    @State private var selectedTab = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $selectedTab) {
+                Text("Профиль").tag(0)
+                Text("График дня").tag(1)
+                Text("Рекомендации").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .padding()
+
+            switch selectedTab {
+            case 0:
+                ProfileFormView()
+            case 1:
+                ScheduleView()
+            default:
+                RecommendationsView()
+            }
+        }
+    }
+}
+
+private struct ProfileFormView: View {
     @State private var name = PrefsManager.shared.userName
     @State private var lastName = PrefsManager.shared.lastName
     @State private var email = PrefsManager.shared.email
@@ -122,18 +147,6 @@ struct ProfileScreen: View {
                 Toggle("Сейчас работаю", isOn: $isWorking)
                     .onChange(of: isWorking) { PrefsManager.shared.isWorking = $0 }
             }
-
-            Section("Персональные рекомендации") {
-                ForEach(buildAdvice(weightKg: weightKg, heightCm: heightCm, age: age, gender: gender), id: \.self) { tip in
-                    Text("• \(tip)")
-                }
-            }
-
-            if !PrefsManager.shared.daySchedule.isEmpty {
-                Section("Ваш график дня") {
-                    Text(PrefsManager.shared.daySchedule)
-                }
-            }
         }
         .onAppear {
             if maritalStatus.isEmpty {
@@ -164,5 +177,35 @@ struct ProfileScreen: View {
     private static func dateToTimeString(_ date: Date) -> String {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+    }
+}
+
+private struct ScheduleView: View {
+    var body: some View {
+        let schedule = PrefsManager.shared.daySchedule
+        Form {
+            Section("Ваш график дня") {
+                if schedule.isEmpty {
+                    Text("График ещё не сгенерирован — пройдите анкету образа жизни при регистрации, чтобы получить его")
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(schedule)
+                }
+            }
+        }
+    }
+}
+
+private struct RecommendationsView: View {
+    var body: some View {
+        let prefs = PrefsManager.shared
+        let advice = buildAdvice(weightKg: prefs.weightKg, heightCm: prefs.heightCm, age: prefs.age, gender: prefs.gender)
+        Form {
+            Section("Персональные рекомендации") {
+                ForEach(advice, id: \.self) { tip in
+                    Text("• \(tip)")
+                }
+            }
+        }
     }
 }

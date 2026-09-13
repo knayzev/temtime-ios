@@ -6,6 +6,24 @@ enum TimerPhase {
     case rest
 }
 
+let motivationalQuotes = [
+    "Успех — это способность идти от одной неудачи к другой, не теряя энтузиазма. — Уинстон Черчилль",
+    "Единственный способ сделать великую работу — любить то, что ты делаешь. — Стив Джобс",
+    "Не бойтесь совершенства — вам его не достичь. — Сальвадор Дали",
+    "Дисциплина — это мост между целями и результатом. — Джим Рон",
+    "Я не терпел неудачу. Я просто нашёл 10 000 способов, которые не работают. — Томас Эдисон",
+    "Секрет продвижения вперёд — начать. — Марк Твен",
+    "Тяжело в учении — легко в бою. — Александр Суворов",
+    "Будущее принадлежит тем, кто верит в красоту своей мечты. — Элеонора Рузвельт",
+    "Маленькие ежедневные улучшения со временем дают потрясающие результаты. — Робин Шарма",
+    "Ты никогда не будешь готов на 100%. Начни с тем, что есть. — Наполеон Хилл",
+    "Не считай дни, делай дни значимыми. — Мухаммед Али",
+    "Лучшее время посадить дерево было 20 лет назад. Второе лучшее — сейчас. — китайская пословица",
+    "Делай то, что можешь, с тем, что имеешь, там, где ты есть. — Теодор Рузвельт",
+    "Мотивация — то, что заставляет тебя начать. Привычка — то, что заставляет продолжать. — Джим Рон",
+    "Единственный, кто может остановить тебя, — это ты сам. — неизвестный автор"
+]
+
 @MainActor
 final class TimerViewModel: ObservableObject {
     @Published private(set) var phase: TimerPhase = .work
@@ -15,6 +33,7 @@ final class TimerViewModel: ObservableObject {
     @Published private(set) var restMinutes: Int
     @Published var currentComment: String = ""
     @Published var currentCategory: String = ""
+    @Published private(set) var motivationQuote: String?
 
     private var timer: Timer?
     private let prefs = PrefsManager.shared
@@ -43,6 +62,10 @@ final class TimerViewModel: ObservableObject {
         if !isRunning && phase == .rest {
             secondsLeft = minutes * 60
         }
+    }
+
+    func dismissQuote() {
+        motivationQuote = nil
     }
 
     func start() {
@@ -87,11 +110,26 @@ final class TimerViewModel: ObservableObject {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        alertUser()
+        let finishedPhase = phase
         flushHistoryEntry(interrupted: false)
-        phase = (phase == .work) ? .rest : .work
+        phase = (finishedPhase == .work) ? .rest : .work
         secondsLeft = (phase == .work ? workMinutes : restMinutes) * 60
+        if finishedPhase == .work {
+            motivationQuote = motivationalQuotes.randomElement()
+        }
         start()
+        repeatAlert(times: finishedPhase == .work ? 3 : 1)
+    }
+
+    private func repeatAlert(times: Int) {
+        Task { @MainActor in
+            for index in 0..<times {
+                alertUser()
+                if index < times - 1 {
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                }
+            }
+        }
     }
 
     private func flushHistoryEntry(interrupted: Bool) {

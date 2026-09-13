@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TimerScreen: View {
     @ObservedObject var viewModel: TimerViewModel
+    @StateObject private var stepCounter = LiveStepCounter()
     @State private var showComment = false
 
     @State private var presets = PrefsManager.shared.presets
@@ -50,9 +51,35 @@ struct TimerScreen: View {
                 .font(.title.bold())
                 .foregroundColor(viewModel.phase == .work ? AppColors.workColor : AppColors.restColor)
 
+            if let steps = stepCounter.steps {
+                Text("Шаги: \(steps)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
             Text(String(format: "%02d:%02d", minutes, seconds))
                 .font(.system(size: 64, weight: .bold, design: .rounded))
                 .monospacedDigit()
+
+            if let quote = viewModel.motivationQuote {
+                HStack(alignment: .top) {
+                    Text(quote)
+                        .font(.footnote)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Button {
+                        viewModel.dismissQuote()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(12)
+                .background(AppColors.primary.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 24)
+            }
 
             let categories = PrefsManager.shared.categories
             if !categories.isEmpty {
@@ -94,20 +121,24 @@ struct TimerScreen: View {
 
             if !viewModel.isRunning {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Время работы: \(viewModel.workMinutes) мин")
+                    MinutesInputRow(label: "Время работы", minutes: viewModel.workMinutes) {
+                        viewModel.setWorkMinutes($0)
+                    }
                     Slider(
                         value: Binding(
-                            get: { Double(viewModel.workMinutes) },
+                            get: { Double(min(viewModel.workMinutes, 100)) },
                             set: { viewModel.setWorkMinutes(Int($0)) }
                         ),
                         in: 5...100,
                         step: 5
                     )
 
-                    Text("Время отдыха: \(viewModel.restMinutes) мин")
+                    MinutesInputRow(label: "Время отдыха", minutes: viewModel.restMinutes) {
+                        viewModel.setRestMinutes($0)
+                    }
                     Slider(
                         value: Binding(
-                            get: { Double(viewModel.restMinutes) },
+                            get: { Double(min(viewModel.restMinutes, 100)) },
                             set: { viewModel.setRestMinutes(Int($0)) }
                         ),
                         in: 5...100,
@@ -119,6 +150,14 @@ struct TimerScreen: View {
             }
 
             Spacer()
+        }
+        .onAppear {
+            if PrefsManager.shared.stepsEnabled {
+                stepCounter.start()
+            }
+        }
+        .onDisappear {
+            stepCounter.stop()
         }
         .sheet(item: $editingPreset) { preset in
             PresetEditView(
@@ -142,6 +181,37 @@ struct TimerScreen: View {
                 },
                 onDelete: nil
             )
+        }
+    }
+}
+
+private struct MinutesInputRow: View {
+    let label: String
+    let minutes: Int
+    let onChange: (Int) -> Void
+
+    @State private var text: String = ""
+
+    var body: some View {
+        HStack {
+            Text("\(label), мин")
+            Spacer()
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 70)
+                .onChange(of: text) { newValue in
+                    if let value = Int(newValue), (1...300).contains(value) {
+                        onChange(value)
+                    }
+                }
+        }
+        .onAppear { text = String(minutes) }
+        .onChange(of: minutes) { newValue in
+            if Int(text) != newValue {
+                text = String(newValue)
+            }
         }
     }
 }

@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreMotion
 import UniformTypeIdentifiers
 
 private struct JSONTextDocument: FileDocument {
@@ -23,17 +22,32 @@ private struct JSONTextDocument: FileDocument {
 
 struct SettingsScreen: View {
     var onLogout: () -> Void = {}
+    @State private var selectedTab = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $selectedTab) {
+                Text("Основные настройки").tag(0)
+                Text("Активность").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding()
+
+            if selectedTab == 0 {
+                GeneralSettingsView(onLogout: onLogout)
+            } else {
+                ActivitySettingsView()
+            }
+        }
+    }
+}
+
+private struct GeneralSettingsView: View {
+    let onLogout: () -> Void
 
     @State private var soundEnabled = PrefsManager.shared.soundEnabled
     @State private var vibrationEnabled = PrefsManager.shared.vibrationEnabled
     @State private var keepScreenOn = PrefsManager.shared.keepScreenOn
-
-    @State private var stepsEnabled = PrefsManager.shared.stepsEnabled
-    @State private var stepCount: Int?
-    @State private var pedometer = CMPedometer()
-
-    @State private var categories = PrefsManager.shared.categories
-    @State private var newCategory = ""
 
     @State private var showExporter = false
     @State private var showImporter = false
@@ -44,10 +58,6 @@ struct SettingsScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Настройки")
-                    .font(.title.bold())
-                    .padding(.bottom, 8)
-
                 Toggle("Звук по окончании этапа", isOn: $soundEnabled)
                     .onChange(of: soundEnabled) { PrefsManager.shared.soundEnabled = $0 }
 
@@ -56,57 +66,6 @@ struct SettingsScreen: View {
 
                 Toggle("Не выключать экран во время таймера", isOn: $keepScreenOn)
                     .onChange(of: keepScreenOn) { PrefsManager.shared.keepScreenOn = $0 }
-
-                Divider()
-
-                Toggle("Счётчик шагов", isOn: $stepsEnabled)
-                    .onChange(of: stepsEnabled) { enabled in
-                        PrefsManager.shared.stepsEnabled = enabled
-                        if enabled {
-                            startStepUpdates()
-                        } else {
-                            pedometer.stopUpdates()
-                            stepCount = nil
-                        }
-                    }
-
-                if stepsEnabled {
-                    Text(stepCount.map { "Шагов сегодня: \($0)" } ?? "Считаем шаги…")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                Divider()
-                Text("Категории активности").font(.headline)
-                Text("Выбираются на экране таймера и видны в истории")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                ForEach(categories, id: \.self) { category in
-                    HStack {
-                        Text(category)
-                        Spacer()
-                        Button {
-                            categories.removeAll { $0 == category }
-                            PrefsManager.shared.categories = categories
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                HStack {
-                    TextField("Новая категория", text: $newCategory)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Добавить") {
-                        let trimmed = newCategory.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty && !categories.contains(trimmed) {
-                            categories.append(trimmed)
-                            PrefsManager.shared.categories = categories
-                        }
-                        newCategory = ""
-                    }
-                }
 
                 Divider()
                 Text("Экспорт и бэкап").font(.headline)
@@ -119,6 +78,7 @@ struct SettingsScreen: View {
                         showExporter = true
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(AppColors.primary)
 
                     Button("Импортировать") {
                         showImporter = true
@@ -140,14 +100,6 @@ struct SettingsScreen: View {
                 .buttonStyle(.bordered)
             }
             .padding(24)
-        }
-        .onAppear {
-            if stepsEnabled {
-                startStepUpdates()
-            }
-        }
-        .onDisappear {
-            pedometer.stopUpdates()
         }
         .fileExporter(
             isPresented: $showExporter,
@@ -183,7 +135,6 @@ struct SettingsScreen: View {
             }
             Button("Импортировать", role: .destructive) {
                 if let text = pendingImportText, PrefsManager.shared.importAllData(text) {
-                    categories = PrefsManager.shared.categories
                     importMessage = "Данные импортированы"
                 } else {
                     importMessage = "Не удалось прочитать файл"
@@ -194,15 +145,75 @@ struct SettingsScreen: View {
             Text("Текущий профиль, настройки и история будут заменены содержимым файла.")
         }
     }
+}
 
-    private func startStepUpdates() {
-        guard CMPedometer.isStepCountingAvailable() else { return }
-        let startOfDay = Calendar.current.startOfDay(for: Date())
-        pedometer.startUpdates(from: startOfDay) { data, _ in
-            guard let data else { return }
-            DispatchQueue.main.async {
-                stepCount = data.numberOfSteps.intValue
+private struct ActivitySettingsView: View {
+    @StateObject private var stepCounter = LiveStepCounter()
+    @State private var stepsEnabled = PrefsManager.shared.stepsEnabled
+
+    @State private var categories = PrefsManager.shared.categories
+    @State private var newCategory = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Toggle("Счётчик шагов", isOn: $stepsEnabled)
+                    .onChange(of: stepsEnabled) { enabled in
+                        PrefsManager.shared.stepsEnabled = enabled
+                        if enabled {
+                            stepCounter.start()
+                        } else {
+                            stepCounter.stop()
+                        }
+                    }
+
+                if stepsEnabled {
+                    Text(stepCounter.steps.map { "Шагов сегодня: \($0)" } ?? "Считаем шаги…")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Divider()
+                Text("Категории активности").font(.headline)
+                Text("Выбираются на экране таймера и видны в истории")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                ForEach(categories, id: \.self) { category in
+                    HStack {
+                        Text(category)
+                        Spacer()
+                        Button {
+                            categories.removeAll { $0 == category }
+                            PrefsManager.shared.categories = categories
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                HStack {
+                    TextField("Новая категория", text: $newCategory)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Добавить") {
+                        let trimmed = newCategory.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty && !categories.contains(trimmed) {
+                            categories.append(trimmed)
+                            PrefsManager.shared.categories = categories
+                        }
+                        newCategory = ""
+                    }
+                }
             }
+            .padding(24)
+        }
+        .onAppear {
+            if stepsEnabled {
+                stepCounter.start()
+            }
+        }
+        .onDisappear {
+            stepCounter.stop()
         }
     }
 }
