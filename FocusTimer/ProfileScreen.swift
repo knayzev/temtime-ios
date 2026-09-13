@@ -3,7 +3,9 @@ import PhotosUI
 
 struct ProfileScreen: View {
     @State private var name = PrefsManager.shared.userName
+    @State private var lastName = PrefsManager.shared.lastName
     @State private var email = PrefsManager.shared.email
+    @State private var dataConsentGiven = PrefsManager.shared.dataConsentGiven
     @State private var weightKg = PrefsManager.shared.weightKg
     @State private var heightCm = PrefsManager.shared.heightCm
     @State private var age = PrefsManager.shared.age
@@ -65,10 +67,16 @@ struct ProfileScreen: View {
                 TextField("Имя", text: $name)
                     .onChange(of: name) { PrefsManager.shared.userName = $0 }
 
+                TextField("Фамилия", text: $lastName)
+                    .onChange(of: lastName) { PrefsManager.shared.lastName = $0 }
+
                 TextField("Почта", text: $email)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .onChange(of: email) { PrefsManager.shared.email = $0 }
+
+                Toggle("Согласен(на) на обработку персональных данных", isOn: $dataConsentGiven)
+                    .onChange(of: dataConsentGiven) { PrefsManager.shared.dataConsentGiven = $0 }
             }
 
             Section("Параметры") {

@@ -16,6 +16,7 @@ targets:
         CFBundleDisplayName: Focus Timer
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        NSMotionUsageDescription: Используется для подсчёта шагов в разделе «Настройки».
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.focustimer.app

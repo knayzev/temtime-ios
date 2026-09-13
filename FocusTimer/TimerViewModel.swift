@@ -13,9 +13,11 @@ final class TimerViewModel: ObservableObject {
     @Published private(set) var secondsLeft: Int
     @Published private(set) var workMinutes: Int
     @Published private(set) var restMinutes: Int
+    @Published var currentComment: String = ""
 
     private var timer: Timer?
     private let prefs = PrefsManager.shared
+    private var sessionStartTime: TimeInterval?
 
     init() {
         let work = prefs.workMinutes
@@ -43,6 +45,9 @@ final class TimerViewModel: ObservableObject {
 
     func start() {
         guard !isRunning else { return }
+        if sessionStartTime == nil {
+            sessionStartTime = Date().timeIntervalSince1970
+        }
         isRunning = true
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -59,6 +64,7 @@ final class TimerViewModel: ObservableObject {
     func stop() {
         timer?.invalidate()
         timer = nil
+        flushHistoryEntry(interrupted: true)
         isRunning = false
         phase = .work
         secondsLeft = workMinutes * 60
@@ -80,9 +86,27 @@ final class TimerViewModel: ObservableObject {
         timer = nil
         isRunning = false
         alertUser()
+        flushHistoryEntry(interrupted: false)
         phase = (phase == .work) ? .rest : .work
         secondsLeft = (phase == .work ? workMinutes : restMinutes) * 60
         start()
+    }
+
+    private func flushHistoryEntry(interrupted: Bool) {
+        guard let start = sessionStartTime else { return }
+        let plannedSeconds = (phase == .work ? workMinutes : restMinutes) * 60
+        let elapsedSeconds = interrupted ? max(0, plannedSeconds - secondsLeft) : plannedSeconds
+        let entry = SessionRecord(
+            id: start,
+            phase: phase == .work ? "WORK" : "REST",
+            startTime: start,
+            durationSeconds: elapsedSeconds,
+            interrupted: interrupted,
+            comment: currentComment
+        )
+        prefs.addHistoryEntry(entry)
+        sessionStartTime = nil
+        currentComment = ""
     }
 
     private func alertUser() {

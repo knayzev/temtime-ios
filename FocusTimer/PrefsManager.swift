@@ -1,5 +1,14 @@
 import Foundation
 
+struct SessionRecord: Codable, Identifiable {
+    let id: TimeInterval
+    let phase: String
+    let startTime: TimeInterval
+    let durationSeconds: Int
+    let interrupted: Bool
+    var comment: String
+}
+
 final class PrefsManager {
     static let shared = PrefsManager()
     private let defaults = UserDefaults.standard
@@ -20,11 +29,30 @@ final class PrefsManager {
         static let wakeTime = "wake_time"
         static let bedTime = "bed_time"
         static let isWorking = "is_working"
+        static let lastName = "last_name"
+        static let dataConsentGiven = "data_consent_given"
+        static let stepsEnabled = "steps_enabled"
+        static let history = "session_history"
     }
 
     var userName: String {
         get { defaults.string(forKey: Keys.name) ?? "" }
         set { defaults.set(newValue, forKey: Keys.name) }
+    }
+
+    var lastName: String {
+        get { defaults.string(forKey: Keys.lastName) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.lastName) }
+    }
+
+    var dataConsentGiven: Bool {
+        get { defaults.object(forKey: Keys.dataConsentGiven) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.dataConsentGiven) }
+    }
+
+    var stepsEnabled: Bool {
+        get { defaults.object(forKey: Keys.stepsEnabled) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.stepsEnabled) }
     }
 
     private var photoFileName: String? {
@@ -118,6 +146,40 @@ final class PrefsManager {
             return url
         } catch {
             return nil
+        }
+    }
+
+    private static let maxHistoryEntries = 300
+
+    var history: [SessionRecord] {
+        get {
+            guard let data = defaults.data(forKey: Keys.history),
+                  let decoded = try? JSONDecoder().decode([SessionRecord].self, from: data) else {
+                return []
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: Keys.history)
+            }
+        }
+    }
+
+    func addHistoryEntry(_ entry: SessionRecord) {
+        var current = history
+        current.insert(entry, at: 0)
+        if current.count > Self.maxHistoryEntries {
+            current = Array(current.prefix(Self.maxHistoryEntries))
+        }
+        history = current
+    }
+
+    func updateHistoryComment(id: TimeInterval, comment: String) {
+        var current = history
+        if let index = current.firstIndex(where: { $0.id == id }) {
+            current[index].comment = comment
+            history = current
         }
     }
 }

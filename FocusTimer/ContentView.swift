@@ -10,6 +10,11 @@ struct ContentView: View {
                     Label("Таймер", systemImage: "play.fill")
                 }
 
+            HistoryScreen()
+                .tabItem {
+                    Label("История", systemImage: "clock.arrow.circlepath")
+                }
+
             SettingsScreen()
                 .tabItem {
                     Label("Настройки", systemImage: "gearshape.fill")

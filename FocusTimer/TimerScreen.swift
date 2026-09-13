@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TimerScreen: View {
     @ObservedObject var viewModel: TimerViewModel
+    @State private var showComment = false
 
     private var minutes: Int { viewModel.secondsLeft / 60 }
     private var seconds: Int { viewModel.secondsLeft % 60 }
@@ -31,6 +32,16 @@ struct TimerScreen: View {
                     viewModel.stop()
                 }
                 .buttonStyle(.bordered)
+            }
+
+            Button(showComment ? "Скрыть комментарий" : "Добавить комментарий") {
+                showComment.toggle()
+            }
+            .font(.footnote)
+
+            if showComment {
+                TextField("Комментарий к сессии", text: $viewModel.currentComment)
+                    .textFieldStyle(.roundedBorder)
             }
 
             if !viewModel.isRunning {
