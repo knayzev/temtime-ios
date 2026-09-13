@@ -74,6 +74,13 @@ private struct HistoryRow: View {
                 }
             }
 
+            if !entry.quote.isEmpty {
+                Text(entry.quote)
+                    .font(.caption)
+                    .italic()
+                    .foregroundColor(AppColors.restColor)
+            }
+
             TextField("Комментарий", text: $comment)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: comment) { onCommentChange($0) }

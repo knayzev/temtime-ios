@@ -49,6 +49,10 @@ private struct GeneralSettingsView: View {
     @State private var vibrationEnabled = PrefsManager.shared.vibrationEnabled
     @State private var keepScreenOn = PrefsManager.shared.keepScreenOn
 
+    @State private var voiceAnnounceEnabled = PrefsManager.shared.voiceAnnounceEnabled
+    @State private var voiceAnnounceValue = String(PrefsManager.shared.voiceAnnounceLeadValue)
+    @State private var voiceAnnounceUnit = PrefsManager.shared.voiceAnnounceUnit
+
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var showImportConfirm = false
@@ -66,6 +70,34 @@ private struct GeneralSettingsView: View {
 
                 Toggle("Не выключать экран во время таймера", isOn: $keepScreenOn)
                     .onChange(of: keepScreenOn) { PrefsManager.shared.keepScreenOn = $0 }
+
+                Divider()
+                Text("Голосовое предупреждение").font(.headline)
+                Text("Голосом предупредит о приближении смены этапа заранее")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Toggle("Озвучивать приближение конца этапа", isOn: $voiceAnnounceEnabled)
+                    .onChange(of: voiceAnnounceEnabled) { PrefsManager.shared.voiceAnnounceEnabled = $0 }
+
+                if voiceAnnounceEnabled {
+                    HStack {
+                        TextField("За сколько", text: $voiceAnnounceValue)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.numberPad)
+                            .onChange(of: voiceAnnounceValue) { newValue in
+                                if let value = Int(newValue), (1...600).contains(value) {
+                                    PrefsManager.shared.voiceAnnounceLeadValue = value
+                                }
+                            }
+                        Picker("", selection: $voiceAnnounceUnit) {
+                            Text("Секунды").tag("Секунды")
+                            Text("Минуты").tag("Минуты")
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: voiceAnnounceUnit) { PrefsManager.shared.voiceAnnounceUnit = $0 }
+                    }
+                }
 
                 Divider()
                 Text("Экспорт и бэкап").font(.headline)

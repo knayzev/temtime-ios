@@ -13,7 +13,7 @@ targets:
       path: FocusTimer/Info.plist
       properties:
         UILaunchScreen: {}
-        CFBundleDisplayName: Focus Timer
+        CFBundleDisplayName: EPV
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSMotionUsageDescription: Используется для подсчёта шагов в разделе «Настройки».
@@ -21,6 +21,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.focustimer.app
         PRODUCT_NAME: FocusTimer
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"

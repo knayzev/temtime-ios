@@ -29,6 +29,7 @@ struct SessionRecord: Codable, Identifiable {
     let interrupted: Bool
     var comment: String
     var category: String
+    var quote: String
 
     init(
         id: TimeInterval,
@@ -37,7 +38,8 @@ struct SessionRecord: Codable, Identifiable {
         durationSeconds: Int,
         interrupted: Bool,
         comment: String,
-        category: String = ""
+        category: String = "",
+        quote: String = ""
     ) {
         self.id = id
         self.phase = phase
@@ -46,6 +48,7 @@ struct SessionRecord: Codable, Identifiable {
         self.interrupted = interrupted
         self.comment = comment
         self.category = category
+        self.quote = quote
     }
 
     init(from decoder: Decoder) throws {
@@ -57,6 +60,7 @@ struct SessionRecord: Codable, Identifiable {
         interrupted = try container.decode(Bool.self, forKey: .interrupted)
         comment = try container.decode(String.self, forKey: .comment)
         category = try container.decodeIfPresent(String.self, forKey: .category) ?? ""
+        quote = try container.decodeIfPresent(String.self, forKey: .quote) ?? ""
     }
 }
 
@@ -100,6 +104,9 @@ final class PrefsManager {
         static let waterUnit = "water_unit"
         static let waterCount = "water_count"
         static let presets = "timer_presets"
+        static let voiceAnnounceEnabled = "voice_announce_enabled"
+        static let voiceAnnounceValue = "voice_announce_value"
+        static let voiceAnnounceUnit = "voice_announce_unit"
         static let daySchedule = "day_schedule"
         static let lifestyleAnswers = "lifestyle_answers"
     }
@@ -117,6 +124,25 @@ final class PrefsManager {
     var dataConsentGiven: Bool {
         get { defaults.object(forKey: Keys.dataConsentGiven) as? Bool ?? false }
         set { defaults.set(newValue, forKey: Keys.dataConsentGiven) }
+    }
+
+    var voiceAnnounceEnabled: Bool {
+        get { defaults.object(forKey: Keys.voiceAnnounceEnabled) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.voiceAnnounceEnabled) }
+    }
+
+    var voiceAnnounceLeadValue: Int {
+        get { defaults.object(forKey: Keys.voiceAnnounceValue) as? Int ?? 30 }
+        set { defaults.set(newValue, forKey: Keys.voiceAnnounceValue) }
+    }
+
+    var voiceAnnounceUnit: String {
+        get { defaults.string(forKey: Keys.voiceAnnounceUnit) ?? "Секунды" }
+        set { defaults.set(newValue, forKey: Keys.voiceAnnounceUnit) }
+    }
+
+    func voiceAnnounceLeadSeconds() -> Int {
+        voiceAnnounceUnit == "Минуты" ? voiceAnnounceLeadValue * 60 : voiceAnnounceLeadValue
     }
 
     var stepsEnabled: Bool {

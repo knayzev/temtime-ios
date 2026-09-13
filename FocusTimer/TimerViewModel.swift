@@ -1,5 +1,6 @@
 import Foundation
 import AudioToolbox
+import AVFAudio
 
 enum TimerPhase {
     case work
@@ -38,6 +39,8 @@ final class TimerViewModel: ObservableObject {
     private var timer: Timer?
     private let prefs = PrefsManager.shared
     private var sessionStartTime: TimeInterval?
+    private var announcedThisPhase = false
+    private let speechSynthesizer = AVSpeechSynthesizer()
 
     init() {
         let work = prefs.workMinutes
@@ -90,6 +93,7 @@ final class TimerViewModel: ObservableObject {
         timer?.invalidate()
         timer = nil
         flushHistoryEntry(interrupted: true)
+        announcedThisPhase = false
         isRunning = false
         phase = .work
         secondsLeft = workMinutes * 60
@@ -101,9 +105,25 @@ final class TimerViewModel: ObservableObject {
             return
         }
         secondsLeft -= 1
+        maybeAnnounceUpcomingPhase()
         if secondsLeft == 0 {
             onPhaseFinished()
         }
+    }
+
+    private func maybeAnnounceUpcomingPhase() {
+        guard prefs.voiceAnnounceEnabled, !announcedThisPhase else { return }
+        let lead = prefs.voiceAnnounceLeadSeconds()
+        guard lead > 0, secondsLeft <= lead else { return }
+        announcedThisPhase = true
+        let text = phase == .work ? "Приближается время отдыха" : "Приближается время работы"
+        speak(text)
+    }
+
+    private func speak(_ text: String) {
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU")
+        speechSynthesizer.speak(utterance)
     }
 
     private func onPhaseFinished() {
@@ -111,11 +131,13 @@ final class TimerViewModel: ObservableObject {
         timer = nil
         isRunning = false
         let finishedPhase = phase
-        flushHistoryEntry(interrupted: false)
+        let quote = finishedPhase == .work ? motivationalQuotes.randomElement() : nil
+        flushHistoryEntry(interrupted: false, quote: quote ?? "")
         phase = (finishedPhase == .work) ? .rest : .work
         secondsLeft = (phase == .work ? workMinutes : restMinutes) * 60
-        if finishedPhase == .work {
-            motivationQuote = motivationalQuotes.randomElement()
+        announcedThisPhase = false
+        if let quote {
+            motivationQuote = quote
         }
         start()
         repeatAlert(times: finishedPhase == .work ? 3 : 1)
@@ -132,7 +154,7 @@ final class TimerViewModel: ObservableObject {
         }
     }
 
-    private func flushHistoryEntry(interrupted: Bool) {
+    private func flushHistoryEntry(interrupted: Bool, quote: String = "") {
         guard let start = sessionStartTime else { return }
         let plannedSeconds = (phase == .work ? workMinutes : restMinutes) * 60
         let elapsedSeconds = interrupted ? max(0, plannedSeconds - secondsLeft) : plannedSeconds
@@ -143,7 +165,8 @@ final class TimerViewModel: ObservableObject {
             durationSeconds: elapsedSeconds,
             interrupted: interrupted,
             comment: currentComment,
-            category: currentCategory
+            category: currentCategory,
+            quote: quote
         )
         prefs.addHistoryEntry(entry)
         sessionStartTime = nil

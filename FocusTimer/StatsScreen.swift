@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreMotion
 
 private struct Achievement: Identifiable {
     let label: String
@@ -11,6 +12,7 @@ private struct Achievement: Identifiable {
 
 struct StatsScreen: View {
     @State private var history: [SessionRecord] = PrefsManager.shared.history
+    @State private var todaySteps: Int?
 
     private var workEntries: [SessionRecord] { history.filter { $0.phase == "WORK" } }
 
@@ -51,6 +53,9 @@ struct StatsScreen: View {
                 StatRow(label: "За неделю", value: Self.formatDuration(weekSeconds))
                 StatRow(label: "Завершено сессий", value: "\(completedCount) из \(totalCount)")
                 StatRow(label: "Текущий стрик", value: "\(streak) \(Self.daysWord(streak))")
+                if PrefsManager.shared.stepsEnabled {
+                    StatRow(label: "Шаги сегодня", value: todaySteps.map { "\($0)" } ?? "…")
+                }
 
                 if !categoryBreakdown.isEmpty {
                     Divider()
@@ -70,6 +75,15 @@ struct StatsScreen: View {
         }
         .onAppear {
             history = PrefsManager.shared.history
+            if PrefsManager.shared.stepsEnabled, CMPedometer.isStepCountingAvailable() {
+                let startOfDay = Calendar.current.startOfDay(for: Date())
+                CMPedometer().queryPedometerData(from: startOfDay, to: Date()) { data, _ in
+                    guard let data else { return }
+                    DispatchQueue.main.async {
+                        todaySteps = data.numberOfSteps.intValue
+                    }
+                }
+            }
         }
     }
 
