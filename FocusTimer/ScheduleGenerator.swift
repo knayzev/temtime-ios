@@ -53,7 +53,8 @@ let lifestyleQuestions: [LifestyleQuestion] = [
 
 struct ScheduleItem: Identifiable {
     let id = UUID()
-    let time: String
+    /// Editable: the user adjusts the suggested times before saving the schedule.
+    var time: String
     let title: String
     let tips: [String]
 
@@ -102,6 +103,51 @@ private let tipLookup: [String: (block: String, tip: String)] = [
     "Чтение книги перед сном": ("evening", "Чтение — отличная альтернатива экрану")
 ]
 
+// These are represented by their own dedicated "turn off notifications" step instead of a generic
+// tip line, so they are filtered out of the regular evening tips list.
+private let phoneTipTexts: Set<String> = [
+    "Уберите телефон за час до сна",
+    "Продолжайте убирать телефон заранее"
+]
+
+/// Each variant changes more than a uniform time shift — the gaps between blocks (morning routine
+/// length, work-block start delays, lunch/evening buffer) differ too, so consecutive variants are
+/// actually distinguishable instead of collapsing into a barely-noticeable ±30 minute shift.
+private struct ScheduleProfile {
+    let wakeShift: Int
+    let bedShift: Int
+    let breakfastShift: Int
+    let lunchShift: Int
+    let dinnerShift: Int
+    let morningRoutineOffset: Int
+    let postBreakfastGap: Int
+    let postLunchGap: Int
+    let postDinnerGap: Int
+}
+
+private let scheduleProfiles = [
+    ScheduleProfile(wakeShift: 0, bedShift: 0, breakfastShift: 0, lunchShift: 0, dinnerShift: 0,
+                    morningRoutineOffset: 20, postBreakfastGap: 30, postLunchGap: 60, postDinnerGap: 120),
+    ScheduleProfile(wakeShift: -20, bedShift: -20, breakfastShift: -10, lunchShift: -15, dinnerShift: -20,
+                    morningRoutineOffset: 15, postBreakfastGap: 20, postLunchGap: 45, postDinnerGap: 90),
+    ScheduleProfile(wakeShift: 20, bedShift: 20, breakfastShift: 15, lunchShift: 15, dinnerShift: 15,
+                    morningRoutineOffset: 30, postBreakfastGap: 40, postLunchGap: 75, postDinnerGap: 150),
+    ScheduleProfile(wakeShift: 0, bedShift: 0, breakfastShift: 10, lunchShift: -10, dinnerShift: 5,
+                    morningRoutineOffset: 25, postBreakfastGap: 35, postLunchGap: 90, postDinnerGap: 105)
+]
+
+/// The tips in the order their answers were given, without repeats.
+private func orderedTips(_ selected: [String], block: String) -> [String] {
+    var seen = Set<String>()
+    var result: [String] = []
+    for answer in selected {
+        guard let entry = tipLookup[answer], entry.block == block, !seen.contains(entry.tip) else { continue }
+        seen.insert(entry.tip)
+        result.append(entry.tip)
+    }
+    return result
+}
+
 private func timeToMinutes(_ text: String) -> Int {
     let parts = text.split(separator: ":")
     let h = parts.count > 0 ? Int(parts[0]) ?? 8 : 8
@@ -123,32 +169,39 @@ func generateSchedule(
     dinnerTime: String,
     variant: Int
 ) -> [ScheduleItem] {
-    let shift: Int
-    switch variant % 3 {
-    case 1: shift = -30
-    case 2: shift = 30
-    default: shift = 0
-    }
+    let count = scheduleProfiles.count
+    let profile = scheduleProfiles[((variant % count) + count) % count]
 
-    let allSelected = answers.values.flatMap { $0 }
-    let morningTips = Array(Set(allSelected.compactMap { tipLookup[$0] }.filter { $0.block == "morning" }.map { $0.tip }))
-    let eveningTips = Array(Set(allSelected.compactMap { tipLookup[$0] }.filter { $0.block == "evening" }.map { $0.tip }))
+    // Answers are walked question by question so the same answers always give the same tips in
+    // the same order, whichever variant is shown.
+    let allSelected = lifestyleQuestions.flatMap { answers[$0.id] ?? [] }
+    let morningTips = orderedTips(allSelected, block: "morning")
+    let eveningTips = orderedTips(allSelected, block: "evening").filter { !phoneTipTexts.contains($0) }
 
-    let wake = timeToMinutes(wakeTime) + shift
-    let bed = timeToMinutes(bedTime) + shift
-    let breakfast = timeToMinutes(breakfastTime) + shift
-    let lunch = timeToMinutes(lunchTime) + shift
-    let dinner = timeToMinutes(dinnerTime) + shift
+    let wake = timeToMinutes(wakeTime) + profile.wakeShift
+    let bed = timeToMinutes(bedTime) + profile.bedShift
+    let breakfast = timeToMinutes(breakfastTime) + profile.breakfastShift
+    let lunch = timeToMinutes(lunchTime) + profile.lunchShift
+    let dinner = timeToMinutes(dinnerTime) + profile.dinnerShift
 
     return [
         ScheduleItem(time: minutesToTime(wake), title: "Подъём", tips: Array(morningTips.prefix(2))),
-        ScheduleItem(time: minutesToTime(wake + 20), title: "Утренняя рутина"),
+        ScheduleItem(time: minutesToTime(wake + profile.morningRoutineOffset), title: "Утренняя рутина"),
         ScheduleItem(time: minutesToTime(breakfast), title: "Завтрак"),
-        ScheduleItem(time: minutesToTime(breakfast + 30), title: "Работа", tips: ["Блоками по 45–50 минут с перерывами 10–15 минут"]),
+        ScheduleItem(
+            time: minutesToTime(breakfast + profile.postBreakfastGap),
+            title: "Работа",
+            tips: ["Блоками по 45–50 минут с перерывами 10–15 минут"]
+        ),
         ScheduleItem(time: minutesToTime(lunch), title: "Обед"),
-        ScheduleItem(time: minutesToTime(lunch + 60), title: "Работа"),
+        ScheduleItem(time: minutesToTime(lunch + profile.postLunchGap), title: "Работа"),
         ScheduleItem(time: minutesToTime(dinner), title: "Ужин"),
-        ScheduleItem(time: minutesToTime(dinner + 120), title: "Вечер", tips: Array(eveningTips.prefix(2))),
+        ScheduleItem(time: minutesToTime(dinner + profile.postDinnerGap), title: "Вечер", tips: Array(eveningTips.prefix(2))),
+        ScheduleItem(
+            time: minutesToTime(bed - 60),
+            title: "Отключить уведомления на телефоне",
+            tips: ["Включите «Не беспокоить» или авиарежим — так точно уснёте вовремя"]
+        ),
         ScheduleItem(time: minutesToTime(bed), title: "Отбой", tips: Array(eveningTips.dropFirst(2).prefix(1)))
     ]
 }

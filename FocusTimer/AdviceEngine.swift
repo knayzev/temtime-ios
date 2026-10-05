@@ -6,7 +6,13 @@ import Foundation
 /// enough brackets per dimension (age, BMI, height, gender) that the combined output varies
 /// meaningfully across users instead of collapsing into the same 3-4 generic messages.
 /// Not medical advice — just sensible defaults to nudge the user toward a healthier routine.
-func buildAdvice(weightKg: String, heightCm: String, age: String, gender: String) -> [String] {
+func buildAdvice(
+    weightKg: String,
+    heightCm: String,
+    age: String,
+    gender: String,
+    personalityType: String = ""
+) -> [String] {
     var advice: [String] = []
     let ageValue = Int(age)
     let weightValue = Double(weightKg)
@@ -36,8 +42,24 @@ func buildAdvice(weightKg: String, heightCm: String, age: String, gender: String
 
     advice.append(genderAdvice(isFemale: isFemale, isMale: isMale, age: ageValue))
     advice.append(focusRoutineAdvice(age: ageValue))
+    if let personal = personalityAdvice(personalityType) {
+        advice.append(personal)
+    }
 
     return advice
+}
+
+private func personalityAdvice(_ personalityType: String) -> String? {
+    switch personalityType {
+    case "Интроверт":
+        return "Как интроверту, вам может требоваться больше времени в одиночестве для восстановления энергии — закладывайте в график паузы без общения между рабочими блоками."
+    case "Экстраверт":
+        return "Как экстраверту, вам может помогать смена обстановки и общение — короткая пауза с разговором восстанавливает концентрацию лучше, чем тихий отдых в одиночестве."
+    case "Амбиверт":
+        return "Как амбиверту, вам стоит ориентироваться на своё текущее состояние — иногда лучше отдохнуть в тишине, иногда — переключиться на общение."
+    default:
+        return nil
+    }
 }
 
 private func sleepAdvice(age: Int?) -> String {

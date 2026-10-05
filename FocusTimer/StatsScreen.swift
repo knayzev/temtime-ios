@@ -10,6 +10,25 @@ private struct Achievement: Identifiable {
     var progress: Double { min(1.0, Double(current) / Double(target)) }
 }
 
+/// A productivity window, compared against the minute of the day a session started at.
+private struct FocusWindow {
+    let label: String
+    let start: String
+    let end: String
+
+    func contains(_ minuteOfDay: Int) -> Bool {
+        minuteOfDay >= parseClockMinutes(start) && minuteOfDay < parseClockMinutes(end)
+    }
+}
+
+private struct WindowStats: Identifiable {
+    let window: FocusWindow
+    let today: Int
+    let week: Int
+    let month: Int
+    var id: String { window.label }
+}
+
 struct StatsScreen: View {
     @State private var history: [SessionRecord] = PrefsManager.shared.history
     @State private var todaySteps: Int?
@@ -18,16 +37,47 @@ struct StatsScreen: View {
 
     private var todayStart: TimeInterval { Self.startOfDay(Date()) }
     private var weekStart: TimeInterval { todayStart - 6 * Self.dayInterval }
+    private var monthStart: TimeInterval {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month], from: Date())
+        return (calendar.date(from: components) ?? Date()).timeIntervalSince1970
+    }
 
-    private var todaySeconds: Int {
-        workEntries.filter { $0.startTime >= todayStart }.reduce(0) { $0 + $1.durationSeconds }
+    private func seconds(_ entries: [SessionRecord], since start: TimeInterval) -> Int {
+        entries.filter { $0.startTime >= start }.reduce(0) { $0 + $1.durationSeconds }
     }
-    private var weekSeconds: Int {
-        workEntries.filter { $0.startTime >= weekStart }.reduce(0) { $0 + $1.durationSeconds }
-    }
+
     private var completedCount: Int { workEntries.filter { !$0.interrupted }.count }
-    private var totalCount: Int { workEntries.count }
     private var streak: Int { Self.computeStreak(workEntries) }
+
+    /// Two productivity windows, classified by when a session started.
+    private var windows: [FocusWindow] {
+        let prefs = PrefsManager.shared
+        return [
+            FocusWindow(label: "Первая половина", start: prefs.focusWindowOneStart, end: prefs.focusWindowOneEnd),
+            FocusWindow(label: "Вторая половина", start: prefs.focusWindowTwoStart, end: prefs.focusWindowTwoEnd)
+        ]
+    }
+
+    private var windowStats: [WindowStats] {
+        windows.map { window in
+            let inWindow = workEntries.filter { window.contains(Self.minuteOfDay($0.startTime)) }
+            return WindowStats(
+                window: window,
+                today: seconds(inWindow, since: todayStart),
+                week: seconds(inWindow, since: weekStart),
+                month: seconds(inWindow, since: monthStart)
+            )
+        }
+    }
+
+    private var outsideMonth: Int {
+        let all = windows
+        return workEntries
+            .filter { $0.startTime >= monthStart }
+            .filter { entry in !all.contains { $0.contains(Self.minuteOfDay(entry.startTime)) } }
+            .reduce(0) { $0 + $1.durationSeconds }
+    }
 
     private var categoryBreakdown: [(category: String, seconds: Int)] {
         var totals: [String: Int] = [:]
@@ -40,38 +90,79 @@ struct StatsScreen: View {
 
     private var achievements: [Achievement] {
         [1, 10, 50, 100, 500].map { Achievement(label: "\($0) завершённых сессий", current: completedCount, target: $0) } +
-            [3, 7, 30, 100].map { Achievement(label: "Стрик \($0) \(Self.daysWord($0))", current: streak, target: $0) }
+            [3, 7, 30, 100].map { Achievement(label: "Стрик \($0) \(daysWord($0))", current: streak, target: $0) }
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Статистика")
-                    .font(.title.bold())
+        let work = workEntries
+        let breakdown = categoryBreakdown
 
-                StatRow(label: "Сегодня", value: Self.formatDuration(todaySeconds))
-                StatRow(label: "За неделю", value: Self.formatDuration(weekSeconds))
-                StatRow(label: "Завершено сессий", value: "\(completedCount) из \(totalCount)")
-                StatRow(label: "Текущий стрик", value: "\(streak) \(Self.daysWord(streak))")
-                if PrefsManager.shared.stepsEnabled {
-                    StatRow(label: "Шаги сегодня", value: todaySteps.map { "\($0)" } ?? "…")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                // The three totals people actually come here for, big enough to read at a glance.
+                HStack(spacing: 12) {
+                    HeadlineStat(label: "Сегодня", value: Self.formatDuration(seconds(work, since: todayStart)))
+                    HeadlineStat(label: "Неделя", value: Self.formatDuration(seconds(work, since: weekStart)))
+                    HeadlineStat(label: "Месяц", value: Self.formatDuration(seconds(work, since: monthStart)))
                 }
 
-                if !categoryBreakdown.isEmpty {
-                    Divider()
-                    Text("По категориям").font(.headline)
-                    ForEach(categoryBreakdown, id: \.category) { item in
-                        StatRow(label: item.category, value: Self.formatDuration(item.seconds))
+                StatsCard(title: "Сессии") {
+                    StatRow(label: "Завершено", value: "\(completedCount) из \(work.count)")
+                    StatRow(label: "Текущий стрик", value: "\(streak) \(daysWord(streak))")
+                    if PrefsManager.shared.stepsEnabled {
+                        StatRow(label: "Шаги сегодня", value: todaySteps.map { "\($0)" } ?? "…")
                     }
                 }
 
-                Divider()
-                Text("Достижения").font(.headline)
-                ForEach(achievements) { achievement in
-                    AchievementRow(achievement: achievement)
+                StatsCard(title: "Окна продуктивности", subtitle: "Сегодня · неделя · месяц") {
+                    ForEach(windowStats) { stats in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(stats.window.label) · \(stats.window.start)–\(stats.window.end)")
+                                .font(.subheadline.weight(.medium))
+                            Text(
+                                Self.formatDuration(stats.today) + "  ·  "
+                                    + Self.formatDuration(stats.week) + "  ·  "
+                                    + Self.formatDuration(stats.month)
+                            )
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    if outsideMonth > 0 {
+                        StatRow(label: "Вне окон, за месяц", value: Self.formatDuration(outsideMonth))
+                    }
+                }
+
+                if !breakdown.isEmpty {
+                    StatsCard(title: "По категориям") {
+                        let largest = max(1, breakdown[0].seconds)
+                        ForEach(breakdown, id: \.category) { item in
+                            // A category's share of the busiest one, so the split is visible
+                            // without reading the numbers.
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(item.category).font(.subheadline)
+                                    Spacer()
+                                    Text(Self.formatDuration(item.seconds))
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                ProgressBar(fraction: Double(item.seconds) / Double(largest), tint: AppColors.primary)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+
+                StatsCard(title: "Достижения") {
+                    ForEach(achievements) { achievement in
+                        AchievementRow(achievement: achievement)
+                    }
                 }
             }
-            .padding(24)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
         .onAppear {
             history = PrefsManager.shared.history
@@ -93,15 +184,20 @@ struct StatsScreen: View {
         Calendar.current.startOfDay(for: date).timeIntervalSince1970
     }
 
+    private static func minuteOfDay(_ timestamp: TimeInterval) -> Int {
+        nowMinutesOfDay(Date(timeIntervalSince1970: timestamp))
+    }
+
     private static func computeStreak(_ workEntries: [SessionRecord]) -> Int {
         let completedDays = Set(
             workEntries.filter { !$0.interrupted }.map { startOfDay(Date(timeIntervalSince1970: $0.startTime)) }
         )
         var streak = 0
-        var cursor = startOfDay(Date())
-        while completedDays.contains(cursor) {
+        var cursor = Date()
+        while completedDays.contains(startOfDay(cursor)) {
             streak += 1
-            cursor -= dayInterval
+            // Stepping by calendar day keeps the count right across a clock change.
+            cursor = Calendar.current.date(byAdding: .day, value: -1, to: cursor) ?? cursor.addingTimeInterval(-dayInterval)
         }
         return streak
     }
@@ -111,16 +207,50 @@ struct StatsScreen: View {
         let minutes = (totalSeconds % 3600) / 60
         return hours > 0 ? "\(hours) ч \(minutes) мин" : "\(minutes) мин"
     }
+}
 
-    private static func daysWord(_ n: Int) -> String {
-        let mod100 = n % 100
-        let mod10 = n % 10
-        if (11...14).contains(mod100) { return "дней" }
-        switch mod10 {
-        case 1: return "день"
-        case 2, 3, 4: return "дня"
-        default: return "дней"
+/// One of the three big totals across the top.
+private struct HeadlineStat: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(AppColors.primarySoft))
+    }
+}
+
+/// Groups related rows so the screen reads as sections rather than one long list.
+private struct StatsCard<Content: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(AppColors.surface))
     }
 }
 
@@ -143,7 +273,7 @@ private struct AchievementRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: achievement.unlocked ? "checkmark.circle.fill" : "lock.fill")
-                .foregroundColor(achievement.unlocked ? .green : .secondary)
+                .foregroundColor(achievement.unlocked ? AppColors.restColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Text(achievement.label)
                 ProgressView(value: achievement.progress)

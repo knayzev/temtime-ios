@@ -2,6 +2,8 @@ import SwiftUI
 import PhotosUI
 
 struct ProfileScreen: View {
+    var onOpenLifestyle: () -> Void = {}
+    var onOpenDetails: () -> Void = {}
     @State private var selectedTab = 0
 
     var body: some View {
@@ -18,7 +20,7 @@ struct ProfileScreen: View {
             case 0:
                 ProfileFormView()
             case 1:
-                ScheduleView()
+                ScheduleView(onOpenLifestyle: onOpenLifestyle, onOpenDetails: onOpenDetails)
             default:
                 RecommendationsView()
             }
@@ -181,17 +183,29 @@ private struct ProfileFormView: View {
 }
 
 private struct ScheduleView: View {
+    let onOpenLifestyle: () -> Void
+    let onOpenDetails: () -> Void
+    @State private var schedule = PrefsManager.shared.daySchedule
+
     var body: some View {
-        let schedule = PrefsManager.shared.daySchedule
         Form {
             Section("Ваш график дня") {
                 if schedule.isEmpty {
-                    Text("График ещё не сгенерирован — пройдите анкету образа жизни при регистрации, чтобы получить его")
+                    Text("График ещё не сгенерирован. Пройдите анкету образа жизни — она подберёт график под ваш сон, приёмы пищи и работу.")
                         .foregroundColor(.secondary)
                 } else {
                     Text(schedule)
                 }
             }
+
+            // Setup no longer walks through these, so this is where they are reached from.
+            Section {
+                Button(schedule.isEmpty ? "Пройти анкету образа жизни" : "Пересобрать график", action: onOpenLifestyle)
+                Button("Подробная анкета о себе", action: onOpenDetails)
+            }
+        }
+        .onAppear {
+            schedule = PrefsManager.shared.daySchedule
         }
     }
 }
@@ -199,7 +213,13 @@ private struct ScheduleView: View {
 private struct RecommendationsView: View {
     var body: some View {
         let prefs = PrefsManager.shared
-        let advice = buildAdvice(weightKg: prefs.weightKg, heightCm: prefs.heightCm, age: prefs.age, gender: prefs.gender)
+        let advice = buildAdvice(
+            weightKg: prefs.weightKg,
+            heightCm: prefs.heightCm,
+            age: prefs.age,
+            gender: prefs.gender,
+            personalityType: prefs.personalityType
+        )
         Form {
             Section("Персональные рекомендации") {
                 ForEach(advice, id: \.self) { tip in

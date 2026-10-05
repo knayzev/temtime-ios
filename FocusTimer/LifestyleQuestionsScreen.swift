@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// How many schedule variants can be generated and compared.
+private let maxScheduleVariants = 4
+
+/// Questions about sleep and mornings, turned into a day schedule. Up to four variants can be
+/// generated, compared side by side, and the chosen one adjusted before it is saved.
 struct LifestyleQuestionsScreen: View {
     let onComplete: () -> Void
 
@@ -7,10 +12,10 @@ struct LifestyleQuestionsScreen: View {
     @State private var customTexts: [String: String] = [:]
 
     @State private var showResult = false
-    @State private var regenerateCount = 0
-    @State private var scheduleItems: [ScheduleItem] = []
-    @State private var showCustomInput = false
-    @State private var customSchedule = ""
+    @State private var variants: [[ScheduleItem]] = []
+    @State private var selectedIndex = 0
+    @State private var editedItems: [ScheduleItem] = []
+    @State private var showCompare = false
 
     init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -66,6 +71,7 @@ struct LifestyleQuestionsScreen: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
 
@@ -85,27 +91,24 @@ struct LifestyleQuestionsScreen: View {
                             }
                             customTexts[question.id] = ""
                         }
+                        .buttonStyle(.borderless)
                     }
                 }
             }
 
             Section {
-                Button("Сгенерировать график") {
+                Button {
                     PrefsManager.shared.lifestyleAnswers = answers
-                    regenerateCount = 0
-                    scheduleItems = generateSchedule(
-                        answers: answers,
-                        wakeTime: PrefsManager.shared.wakeTime,
-                        bedTime: PrefsManager.shared.bedTime,
-                        breakfastTime: PrefsManager.shared.breakfastTime,
-                        lunchTime: PrefsManager.shared.lunchTime,
-                        dinnerTime: PrefsManager.shared.dinnerTime,
-                        variant: 0
-                    )
-                    showCustomInput = false
+                    let first = makeVariant(0)
+                    variants = [first]
+                    selectedIndex = 0
+                    editedItems = first
+                    showCompare = false
                     showResult = true
+                } label: {
+                    Text("Сгенерировать график")
+                        .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
                 .buttonStyle(.borderedProminent)
                 .tint(AppColors.primary)
             }
@@ -114,63 +117,95 @@ struct LifestyleQuestionsScreen: View {
     }
 
     private var resultView: some View {
-        Form {
-            Section("Предложенный график дня") {
-                if showCustomInput {
-                    TextEditor(text: $customSchedule)
-                        .frame(minHeight: 160)
-                } else {
-                    ForEach(scheduleItems) { item in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(item.time) — \(item.title)").fontWeight(.medium)
-                            ForEach(item.tips, id: \.self) { tip in
-                                Text("• \(tip)")
-                                    .font(.caption)
-                                    .foregroundColor(AppColors.primary)
-                            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("График дня №\(selectedIndex + 1)")
+                    .font(.title3.bold())
+
+                HStack(spacing: 8) {
+                    Button {
+                        selectVariant(selectedIndex - 1)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .disabled(selectedIndex == 0)
+                    .accessibilityLabel("Предыдущий график")
+
+                    ForEach(variants.indices, id: \.self) { index in
+                        Button {
+                            selectVariant(index)
+                        } label: {
+                            Text("\(index + 1)")
+                                .font(.subheadline.bold())
+                                .foregroundColor(index == selectedIndex ? .white : .primary)
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    Circle().fill(index == selectedIndex ? AppColors.primary : AppColors.surface)
+                                )
                         }
-                        .padding(.vertical, 2)
+                        .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        selectVariant(selectedIndex + 1)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .disabled(selectedIndex >= variants.count - 1)
+                    .accessibilityLabel("Следующий график")
+                }
+
+                if showCompare && variants.count > 1 {
+                    ScheduleCompareTable(variants: variants)
+                } else {
+                    Text("Подстройте время под себя — остальное менять не обязательно")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    ForEach($editedItems) { $item in
+                        HStack(alignment: .top, spacing: 12) {
+                            ClockPicker(label: "", time: $item.time)
+                                .labelsHidden()
+                                .frame(width: 90, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title).fontWeight(.medium)
+                                ForEach(item.tips, id: \.self) { tip in
+                                    Text("• \(tip)")
+                                        .font(.caption)
+                                        .foregroundColor(AppColors.primary)
+                                }
+                            }
+                            .padding(.top, 6)
+                        }
                     }
                 }
-            }
 
-            Section {
-                HStack {
-                    Button("Ещё варианты (\(3 - regenerateCount))") {
-                        regenerateCount += 1
-                        scheduleItems = generateSchedule(
-                            answers: answers,
-                            wakeTime: PrefsManager.shared.wakeTime,
-                            bedTime: PrefsManager.shared.bedTime,
-                            breakfastTime: PrefsManager.shared.breakfastTime,
-                            lunchTime: PrefsManager.shared.lunchTime,
-                            dinnerTime: PrefsManager.shared.dinnerTime,
-                            variant: regenerateCount
-                        )
-                        showCustomInput = false
+                HStack(spacing: 12) {
+                    Button("Ещё графики (\(maxScheduleVariants - variants.count))") {
+                        let next = makeVariant(variants.count)
+                        variants.append(next)
+                        selectVariant(variants.count - 1)
+                        showCompare = false
                     }
-                    .disabled(regenerateCount >= 3)
+                    .buttonStyle(.bordered)
+                    .disabled(variants.count >= maxScheduleVariants)
 
-                    Spacer()
-
-                    Button(showCustomInput ? "К предложенному" : "Свой вариант") {
-                        showCustomInput.toggle()
+                    Button(showCompare ? "К графику" : "Сравнить графики") {
+                        showCompare.toggle()
                     }
+                    .buttonStyle(.bordered)
+                    .disabled(variants.count < 2)
                 }
-            }
+                .font(.subheadline)
 
-            Section {
-                Button("Сохранить и продолжить") {
-                    let trimmedCustom = customSchedule.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if showCustomInput && !trimmedCustom.isEmpty {
-                        PrefsManager.shared.daySchedule = customSchedule
-                    } else {
-                        PrefsManager.shared.daySchedule = scheduleToText(scheduleItems)
-                    }
-                    PrefsManager.shared.isOnboarded = true
+                Button {
+                    PrefsManager.shared.daySchedule = scheduleToText(editedItems)
                     onComplete()
+                } label: {
+                    Text("Сохранить график")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                 }
-                .frame(maxWidth: .infinity)
                 .buttonStyle(.borderedProminent)
                 .tint(AppColors.primary)
 
@@ -179,7 +214,27 @@ struct LifestyleQuestionsScreen: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+            .padding(20)
         }
+    }
+
+    private func makeVariant(_ variant: Int) -> [ScheduleItem] {
+        let prefs = PrefsManager.shared
+        return generateSchedule(
+            answers: answers,
+            wakeTime: prefs.wakeTime,
+            bedTime: prefs.bedTime,
+            breakfastTime: prefs.breakfastTime,
+            lunchTime: prefs.lunchTime,
+            dinnerTime: prefs.dinnerTime,
+            variant: variant
+        )
+    }
+
+    private func selectVariant(_ index: Int) {
+        guard variants.indices.contains(index) else { return }
+        selectedIndex = index
+        editedItems = variants[index]
     }
 
     private func toggle(_ option: String, for questionId: String) {
@@ -190,5 +245,41 @@ struct LifestyleQuestionsScreen: View {
             current.append(option)
         }
         answers[questionId] = current
+    }
+}
+
+/// The variants side by side: one row per block of the day, one column of times per variant.
+private struct ScheduleCompareTable: View {
+    let variants: [[ScheduleItem]]
+
+    var body: some View {
+        let rowCount = variants.first?.count ?? 0
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 0) {
+                    Text("").frame(width: 150, alignment: .leading)
+                    ForEach(variants.indices, id: \.self) { index in
+                        Text("№\(index + 1)")
+                            .font(.subheadline.bold())
+                            .foregroundColor(AppColors.primary)
+                            .frame(width: 64, alignment: .leading)
+                    }
+                }
+                Divider()
+                ForEach(0..<rowCount, id: \.self) { row in
+                    HStack(alignment: .top, spacing: 0) {
+                        Text(variants[0][row].title)
+                            .font(.subheadline)
+                            .frame(width: 150, alignment: .leading)
+                        ForEach(variants.indices, id: \.self) { index in
+                            Text(row < variants[index].count ? variants[index][row].time : "—")
+                                .font(.subheadline)
+                                .monospacedDigit()
+                                .frame(width: 64, alignment: .leading)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

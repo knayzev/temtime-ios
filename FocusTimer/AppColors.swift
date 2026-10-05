@@ -15,4 +15,10 @@ enum AppColors {
     static let secondary = Color(hex: 0xFF7A59)
     static let workColor = Color(hex: 0x5B4FE9)
     static let restColor = Color(hex: 0x00A896)
+
+    /// Tinted fills for cards and selected states; they read on both light and dark backgrounds.
+    static let primarySoft = primary.opacity(0.14)
+    static let tealSoft = restColor.opacity(0.16)
+    static let coralSoft = secondary.opacity(0.16)
+    static let surface = Color(UIColor.secondarySystemBackground)
 }
