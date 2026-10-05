@@ -166,7 +166,8 @@ final class TimerViewModel: ObservableObject {
     /// When an unanswered phase change seen live turns into a "missed window".
     private var escalationDeadline: Date?
     private var ticker: Timer?
-    private var restoring = false
+    /// Raised until the saved state has been read back, so nothing overwrites it first.
+    private var restoring = true
     private let prefs = PrefsManager.shared
     private var announcedThisPhase = false
     private var nextVoiceFemale = true
@@ -184,6 +185,11 @@ final class TimerViewModel: ObservableObject {
         doneIds = prefs.completedPlanIds(date: today)
         currentCategory = prefs.categories.first ?? ""
         restore()
+        restoring = false
+        if isRunning {
+            catchUp(alertIfJustNow: false)
+            startTicker()
+        }
     }
 
     // MARK: Derived state
@@ -551,7 +557,6 @@ final class TimerViewModel: ObservableObject {
     private func restore() {
         guard let data = prefs.timerState,
               let saved = try? JSONDecoder().decode(SavedTimer.self, from: data) else { return }
-        restoring = true
         phase = saved.phase
         secondsLeft = saved.secondsLeft
         endDate = saved.endDate
@@ -562,11 +567,6 @@ final class TimerViewModel: ObservableObject {
             currentCategory = saved.category
         }
         isRunning = saved.isRunning && saved.endDate != nil
-        restoring = false
-        if isRunning {
-            catchUp(alertIfJustNow: false)
-            startTicker()
-        }
     }
 
     // MARK: Voice and alerts

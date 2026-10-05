@@ -185,7 +185,9 @@ private struct ProfileFormView: View {
 private struct ScheduleView: View {
     let onOpenLifestyle: () -> Void
     let onOpenDetails: () -> Void
-    @State private var schedule = PrefsManager.shared.daySchedule
+    // Bound to the stored value, so it updates the moment the questionnaire sheet saves a new one;
+    // a sheet closing does not make the view underneath appear again.
+    @AppStorage("day_schedule") private var schedule = ""
 
     var body: some View {
         Form {
@@ -203,9 +205,6 @@ private struct ScheduleView: View {
                 Button(schedule.isEmpty ? "Пройти анкету образа жизни" : "Пересобрать график", action: onOpenLifestyle)
                 Button("Подробная анкета о себе", action: onOpenDetails)
             }
-        }
-        .onAppear {
-            schedule = PrefsManager.shared.daySchedule
         }
     }
 }
