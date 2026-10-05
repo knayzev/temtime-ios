@@ -1,4 +1,4 @@
-name: Build iOS App (Simulator)
+name: Build iOS App
 
 on:
   push:
@@ -9,6 +9,8 @@ permissions:
   contents: write
 
 jobs:
+  # Unsigned builds, needing no Apple account: a simulator .app for appetize.io and a device .ipa
+  # for Sideloadly, which signs it with the user's own Apple ID at install time.
   build:
     runs-on: macos-latest
     steps:
@@ -29,6 +31,8 @@ jobs:
 
       - name: Build for iOS Simulator
         run: |
+          # Without pipefail the pipe would hide a failed compile behind tee's exit code.
+          set -o pipefail
           xcodebuild \
             -project FocusTimer.xcodeproj \
             -scheme FocusTimer \
@@ -36,24 +40,139 @@ jobs:
             -configuration Debug \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            build 2>&1 | tee build-output.txt
 
-      - name: Zip .app for Appetize.io
+      - name: Build for device (unsigned)
         run: |
-          cd build/Build/Products/Debug-iphonesimulator
-          zip -r FocusTimer.app.zip FocusTimer.app
+          set -o pipefail
+          xcodebuild \
+            -project FocusTimer.xcodeproj \
+            -scheme FocusTimer \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            build 2>&1 | tee -a build-output.txt
+
+      - name: Package
+        run: |
+          mkdir -p out ipa/Payload
+          (cd build/Build/Products/Debug-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/out/EPV-simulator.app.zip" FocusTimer.app)
+          cp -R build/Build/Products/Release-iphoneos/FocusTimer.app ipa/Payload/
+          (cd ipa && zip -qr "$GITHUB_WORKSPACE/out/EPV-unsigned.ipa" Payload)
+          ls -la out
+
+      # Run logs and artifacts both need a token to read, so a failed compile publishes its own
+      # errors to a prerelease, which is readable without one.
+      - name: Publish compile errors
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          grep -E "error:|\*\* BUILD FAILED" build-output.txt | sort -u | head -80 > errors.txt || true
+          if [ ! -s errors.txt ]; then tail -80 build-output.txt > errors.txt; fi
+          gh release delete ci-errors --yes --cleanup-tag || true
+          gh release create ci-errors --title "Last failed build" --notes-file errors.txt --prerelease
 
       - uses: actions/upload-artifact@v4
         with:
-          name: FocusTimer-ios-simulator
-          path: build/Build/Products/Debug-iphonesimulator/FocusTimer.app.zip
+          name: EPV-ios
+          path: out/
 
       - name: Publish latest release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest build/Build/Products/Debug-iphonesimulator/FocusTimer.app.zip \
-            --title "Latest build (iOS Simulator)" \
-            --notes "Automatically built from the latest commit on main. Unzip and drop FocusTimer.app onto appetize.io/upload to test in a browser." \
+          gh release create latest out/EPV-unsigned.ipa out/EPV-simulator.app.zip \
+            --title "Latest build (iOS)" \
+            --notes "Built from the latest commit on main. EPV-unsigned.ipa: install on an iPhone with Sideloadly and your Apple ID. EPV-simulator.app.zip: unzip and drop FocusTimer.app onto appetize.io/upload to try it in a browser." \
             --latest
+          # A green build clears the errors left by the last red one.
+          gh release delete ci-errors --yes --cleanup-tag || true
+
+  # Signed build uploaded to TestFlight. Runs only once the App Store Connect secrets exist, so the
+  # workflow stays green before the Apple Developer account is set up.
+  testflight:
+    needs: build
+    runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - name: Check TestFlight setup
+        id: gate
+        run: |
+          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_KEY_P8" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "on=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "App Store Connect secrets are not set; skipping the TestFlight upload."
+            echo "on=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.on == 'true'
+
+      - name: Select latest available Xcode
+        if: steps.gate.outputs.on == 'true'
+        run: |
+          LATEST=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          sudo xcode-select -s "$LATEST"
+          xcodebuild -version
+
+      - name: Generate Xcode project
+        if: steps.gate.outputs.on == 'true'
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Archive and upload to TestFlight
+        if: steps.gate.outputs.on == 'true'
+        run: |
+          set -o pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY_PATH"
+          AUTH="-allowProvisioningUpdates -authenticationKeyPath $KEY_PATH -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
+
+          xcodebuild archive \
+            -project FocusTimer.xcodeproj \
+            -scheme FocusTimer \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/EPV.xcarchive" \
+            $AUTH \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} 2>&1 | tee testflight-output.txt
+
+          /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" \
+            -c "Add :destination string upload" \
+            -c "Add :teamID string $APPLE_TEAM_ID" \
+            -c "Add :signingStyle string automatic" \
+            -c "Add :manageAppVersionAndBuildNumber bool false" \
+            "$RUNNER_TEMP/ExportOptions.plist"
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/EPV.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            $AUTH 2>&1 | tee -a testflight-output.txt
+
+      - name: Publish TestFlight errors
+        if: failure() && steps.gate.outputs.on == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          grep -E "error:|Error|\*\* (ARCHIVE|EXPORT) FAILED" testflight-output.txt | sort -u | head -80 > errors.txt || true
+          if [ ! -s errors.txt ]; then tail -80 testflight-output.txt > errors.txt; fi
+          gh release delete testflight-errors --yes --cleanup-tag || true
+          gh release create testflight-errors --title "Last failed TestFlight upload" --notes-file errors.txt --prerelease
+
+      - name: Clear old TestFlight errors
+        if: success() && steps.gate.outputs.on == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete testflight-errors --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true

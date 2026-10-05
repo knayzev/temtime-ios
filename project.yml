@@ -1,6 +1,6 @@
 name: FocusTimer
 options:
-  bundleIdPrefix: com.focustimer
+  bundleIdPrefix: com.knayzev
   deploymentTarget:
     iOS: "16.0"
 targets:
@@ -13,13 +13,14 @@ targets:
       path: FocusTimer/Info.plist
       properties:
         UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
         CFBundleDisplayName: EPV
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSMotionUsageDescription: Используется для подсчёта шагов в разделе «Настройки».
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.focustimer.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.knayzev.epv
         PRODUCT_NAME: FocusTimer
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
