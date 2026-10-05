@@ -159,8 +159,7 @@ struct OnboardingScreen: View {
                     Text("Готово")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppColors.primary)
+                .buttonStyle(PrimaryButtonStyle())
             }
             .listRowBackground(Color.clear)
         }

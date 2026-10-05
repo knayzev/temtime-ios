@@ -95,10 +95,10 @@ struct RoutineScreen: View {
                 WeekStrip(todayKey: todayKey, selectedDate: selectedDate) { switchDate($0) }
 
                 if !tasks.isEmpty {
-                    CardView(fill: AppColors.primarySoft) {
+                    CardView {
                         Text("Выполнено \(doneCount) из \(tasks.count)")
                             .font(.headline)
-                        ProgressBar(fraction: Double(doneCount) / Double(tasks.count), tint: AppColors.primary, height: 8)
+                        ProgressBar(fraction: Double(doneCount) / Double(tasks.count), tint: AppColors.accent, height: 8)
                     }
                 }
 
@@ -175,7 +175,6 @@ struct RoutineScreen: View {
         ForEach(periodTasks) { task in
             RoutineRow(
                 task: task,
-                colorIndex: tasks.firstIndex(where: { $0.id == task.id }) ?? 0,
                 isDone: completedIds.contains(task.id),
                 streak: prefs.routineStreak(taskId: task.id, today: todayKey, previousDates: previousDates),
                 interactive: isToday,
@@ -193,7 +192,7 @@ struct RoutineScreen: View {
 
     private var summaryCard: some View {
         let saved = prefs.daySummary(date: selectedDate)
-        return CardView(fill: AppColors.tealSoft) {
+        return CardView(fill: AppColors.accentSoft) {
             Text("🎉 Рутина выполнена — итог дня")
                 .font(.headline)
             if !editingSummary && !saved.isEmpty {
@@ -221,8 +220,7 @@ struct RoutineScreen: View {
                         prefs.setDaySummary(date: selectedDate, text: draftSummary)
                         editingSummary = false
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppColors.primary)
+                    .buttonStyle(PrimaryButtonStyle())
                 }
             }
         }
@@ -352,7 +350,7 @@ private struct WeekStrip: View {
                         Text("\(Calendar.current.component(.day, from: date))")
                             .font(.subheadline)
                             .fontWeight(isSelected || isToday ? .bold : .regular)
-                            .foregroundColor(isSelected ? .white : .primary)
+                            .foregroundColor(isSelected ? AppColors.onPrimary : .primary)
                             .frame(width: 36, height: 36)
                             .background(
                                 Circle().fill(
@@ -370,7 +368,6 @@ private struct WeekStrip: View {
 
 private struct RoutineRow: View {
     let task: RoutineTask
-    let colorIndex: Int
     let isDone: Bool
     let streak: Int
     let interactive: Bool
@@ -383,12 +380,22 @@ private struct RoutineRow: View {
     let onPauseToggle: () -> Void
     let onDelete: () -> Void
 
+    // The same card as an entry of the day plan: white while it waits, blue while its timer runs,
+    // grey once done. One neutral circle sits behind the icon in every row.
+    private var rowFill: Color {
+        if isRunning { return AppColors.accentSoft }
+        if isDone { return AppColors.surface }
+        return AppColors.card
+    }
+
+    private var rowOutline: Color {
+        if isRunning { return AppColors.accent }
+        if isDone { return Color.clear }
+        return AppColors.hairline
+    }
+
     private var iconFill: Color {
-        switch colorIndex % 3 {
-        case 0: return AppColors.primarySoft
-        case 1: return AppColors.coralSoft
-        default: return AppColors.tealSoft
-        }
+        isRunning || isDone ? AppColors.card : AppColors.surface
     }
 
     private var detail: String? {
@@ -423,7 +430,7 @@ private struct RoutineRow: View {
                     Text(detail)
                         .font(.caption)
                         .fontWeight(isRunning ? .bold : .regular)
-                        .foregroundColor(isRunning || startsInSeconds > 0 ? AppColors.primary : .secondary)
+                        .foregroundColor(isRunning || startsInSeconds > 0 ? AppColors.accent : .secondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -440,9 +447,9 @@ private struct RoutineRow: View {
                 } label: {
                     Image(systemName: isRunning && !isPaused ? "pause.fill" : "play.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(isRunning ? .white : .primary)
+                        .foregroundColor(isRunning ? AppColors.onPrimary : AppColors.primary)
                         .frame(width: 32, height: 32)
-                        .background(Circle().fill(isRunning ? AppColors.primary : AppColors.surface))
+                        .background(Circle().fill(isRunning ? AppColors.primary : AppColors.surfaceHigh))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isRunning ? "Пауза" : "Запустить таймер")
@@ -453,11 +460,11 @@ private struct RoutineRow: View {
                     Circle()
                         .fill(isDone ? AppColors.primary : Color.clear)
                     Circle()
-                        .stroke(isDone ? AppColors.primary : Color.secondary.opacity(0.5), lineWidth: 2)
+                        .strokeBorder(isDone ? AppColors.primary : AppColors.outline, lineWidth: 2)
                     if isDone {
                         Image(systemName: "checkmark")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(AppColors.onPrimary)
                     }
                 }
                 .frame(width: 32, height: 32)
@@ -467,7 +474,11 @@ private struct RoutineRow: View {
             .accessibilityLabel(isDone ? "Готово" : "Отметить")
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(AppColors.surface))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(rowFill))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(rowOutline, lineWidth: 1)
+        )
         .contextMenu {
             Button(role: .destructive, action: onDelete) {
                 Label("Удалить из рутины", systemImage: "trash")

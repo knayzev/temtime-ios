@@ -61,7 +61,7 @@ struct ScheduleSetupScreen: View {
                     .font(.subheadline.weight(.semibold))
 
                     if showHints {
-                        CardView(fill: AppColors.tealSoft) {
+                        CardView(fill: AppColors.accentSoft) {
                             ForEach(Array(hints.enumerated()), id: \.offset) { _, item in
                                 if let hint = item.hint {
                                     VStack(alignment: .leading, spacing: 2) {
@@ -110,8 +110,7 @@ struct ScheduleSetupScreen: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppColors.primary)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(items.isEmpty)
                 .padding(.top, 8)
 

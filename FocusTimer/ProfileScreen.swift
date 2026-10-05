@@ -93,7 +93,7 @@ private struct ProfileFormView: View {
                 .listRowBackground(Color.clear)
             }
 
-            Section("Основное") {
+            Section {
                 TextField("Имя", text: $name)
                     .onChange(of: name) { PrefsManager.shared.userName = $0 }
 
@@ -106,7 +106,13 @@ private struct ProfileFormView: View {
                     .onChange(of: email) { PrefsManager.shared.email = $0 }
 
                 Toggle("Согласен(на) на обработку персональных данных", isOn: $dataConsentGiven)
+                    .tint(AppColors.switchOn)
                     .onChange(of: dataConsentGiven) { PrefsManager.shared.dataConsentGiven = $0 }
+            } header: {
+                Text("Основное")
+            } footer: {
+                // Nothing here is asked for at first launch any more, so the screen says so.
+                Text("Заполнять необязательно. Данные хранятся только на этом устройстве.")
             }
 
             Section("Параметры") {
@@ -147,6 +153,7 @@ private struct ProfileFormView: View {
                     .onChange(of: bedTime) { PrefsManager.shared.bedTime = Self.dateToTimeString($0) }
 
                 Toggle("Сейчас работаю", isOn: $isWorking)
+                    .tint(AppColors.switchOn)
                     .onChange(of: isWorking) { PrefsManager.shared.isWorking = $0 }
             }
         }

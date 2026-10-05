@@ -22,7 +22,7 @@ struct DayScheduleView: View {
 
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .lastTextBaseline) {
-                Text("Сегодня").font(.headline)
+                Text("План на сегодня").font(.headline)
                 Spacer()
                 Text("\(doneCount)/\(items.count) · \(formatSpan(doneMinutes)) из \(formatSpan(totalMinutes))")
                     .font(.caption)
@@ -64,8 +64,7 @@ struct DayScheduleView: View {
                 Label("Добавить занятие", systemImage: "plus")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .tint(AppColors.primary)
+            .buttonStyle(OutlineButtonStyle())
             .padding(.top, 6)
         }
     }
@@ -81,10 +80,24 @@ private struct PlanItemRow: View {
     let onToggleDone: () -> Void
     let onEdit: () -> Void
 
-    private var background: Color {
-        if isRunning { return AppColors.primarySoft }
-        if isDone { return AppColors.surface.opacity(0.6) }
-        return AppColors.surface
+    // A bordered card: white while the entry waits, tinted blue while it is in the timer, greyed
+    // once it is done.
+    private var fill: Color {
+        if isRunning { return AppColors.accentSoft }
+        if isDone { return AppColors.surface }
+        return AppColors.card
+    }
+
+    private var outline: Color {
+        if isRunning { return AppColors.accent }
+        if isDone { return Color.clear }
+        return AppColors.hairline
+    }
+
+    private var timeColor: Color {
+        if isDone { return .secondary }
+        if isRunning { return AppColors.accent }
+        return AppColors.primary
     }
 
     private var subtitle: String {
@@ -95,22 +108,26 @@ private struct PlanItemRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             // A circle rather than a checkbox: the title is the tap target for the timer, and this
-            // one tap must not be mistaken for it.
+            // one tap must not be mistaken for it. The ring keeps an empty circle visible on a
+            // white card, and the area around it is tappable so the target is not 24 points.
             Button(action: onToggleDone) {
                 ZStack {
                     Circle()
-                        .fill(isDone ? AppColors.restColor : Color(UIColor.systemBackground))
-                    Circle()
-                        .stroke(isDone ? AppColors.restColor : Color.secondary.opacity(0.4), lineWidth: 2)
+                        .fill(isDone ? AppColors.primary : AppColors.card)
                     if isDone {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(AppColors.onPrimary)
+                    } else {
+                        Circle()
+                            .strokeBorder(isRunning ? AppColors.accent : AppColors.outline, lineWidth: 2)
                     }
                 }
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isDone ? "Снять отметку" : "Отметить сделанным")
@@ -118,7 +135,7 @@ private struct PlanItemRow: View {
             Text(item.time)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(isDone ? .secondary : AppColors.primary)
+                .foregroundColor(timeColor)
                 .frame(width: 46, alignment: .leading)
 
             Button(action: onSelect) {
@@ -132,7 +149,7 @@ private struct PlanItemRow: View {
                         if isNext {
                             Text("дальше")
                                 .font(.caption2.bold())
-                                .foregroundColor(.white)
+                                .foregroundColor(AppColors.onPrimary)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)
                                 .background(RoundedRectangle(cornerRadius: 5).fill(AppColors.primary))
@@ -140,7 +157,7 @@ private struct PlanItemRow: View {
                     }
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(isLate ? AppColors.secondary : .secondary)
+                        .foregroundColor(isLate ? AppColors.warning : .secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -156,12 +173,13 @@ private struct PlanItemRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Изменить")
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 4)
+        .padding(.trailing, 6)
         .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(background))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(fill))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(isRunning ? AppColors.primary : Color.clear, lineWidth: 1.5)
+                .strokeBorder(outline, lineWidth: 1)
         )
     }
 }
@@ -203,11 +221,17 @@ struct PlanItemEditor: View {
                                             time = entry.time
                                             minutes = String(entry.minutes)
                                         } label: {
+                                            // The chip that filled the fields stays black, so it
+                                            // is clear where the values below came from.
+                                            let picked = title == entry.title
                                             Text(entry.title)
                                                 .font(.footnote)
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .background(Capsule().fill(AppColors.primarySoft))
+                                                .foregroundColor(picked ? AppColors.onPrimary : AppColors.primary)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 7)
+                                                .background(
+                                                    Capsule().fill(picked ? AppColors.primary : AppColors.surfaceHigh)
+                                                )
                                         }
                                         .buttonStyle(.plain)
                                     }

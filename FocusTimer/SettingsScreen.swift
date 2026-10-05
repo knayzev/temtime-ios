@@ -21,7 +21,6 @@ private struct JSONTextDocument: FileDocument {
 }
 
 struct SettingsScreen: View {
-    var onLogout: () -> Void = {}
     @State private var selectedTab = 0
 
     var body: some View {
@@ -34,7 +33,7 @@ struct SettingsScreen: View {
             .padding()
 
             if selectedTab == 0 {
-                GeneralSettingsView(onLogout: onLogout)
+                GeneralSettingsView()
             } else {
                 ActivitySettingsView()
             }
@@ -43,8 +42,6 @@ struct SettingsScreen: View {
 }
 
 private struct GeneralSettingsView: View {
-    let onLogout: () -> Void
-
     @State private var soundEnabled = PrefsManager.shared.soundEnabled
     @State private var vibrationEnabled = PrefsManager.shared.vibrationEnabled
     @State private var keepScreenOn = PrefsManager.shared.keepScreenOn
@@ -64,12 +61,15 @@ private struct GeneralSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Toggle("Звук по окончании этапа", isOn: $soundEnabled)
+                    .tint(AppColors.switchOn)
                     .onChange(of: soundEnabled) { PrefsManager.shared.soundEnabled = $0 }
 
                 Toggle("Вибрация по окончании этапа", isOn: $vibrationEnabled)
+                    .tint(AppColors.switchOn)
                     .onChange(of: vibrationEnabled) { PrefsManager.shared.vibrationEnabled = $0 }
 
                 Toggle("Не выключать экран во время таймера", isOn: $keepScreenOn)
+                    .tint(AppColors.switchOn)
                     .onChange(of: keepScreenOn) { PrefsManager.shared.keepScreenOn = $0 }
 
                 Divider()
@@ -79,6 +79,7 @@ private struct GeneralSettingsView: View {
                     .foregroundColor(.secondary)
 
                 Toggle("Озвучивать приближение конца этапа", isOn: $voiceAnnounceEnabled)
+                    .tint(AppColors.switchOn)
                     .onChange(of: voiceAnnounceEnabled) { PrefsManager.shared.voiceAnnounceEnabled = $0 }
 
                 if voiceAnnounceEnabled {
@@ -116,8 +117,7 @@ private struct GeneralSettingsView: View {
                     Button("Экспортировать") {
                         showExporter = true
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppColors.primary)
+                    .buttonStyle(PrimaryButtonStyle())
 
                     Button("Импортировать") {
                         showImporter = true
@@ -130,13 +130,6 @@ private struct GeneralSettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-
-                Divider()
-                Button("Выйти из аккаунта", role: .destructive) {
-                    onLogout()
-                }
-                .frame(maxWidth: .infinity)
-                .buttonStyle(.bordered)
             }
             .padding(24)
         }
@@ -197,6 +190,7 @@ private struct ActivitySettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Toggle("Счётчик шагов", isOn: $stepsEnabled)
+                    .tint(AppColors.switchOn)
                     .onChange(of: stepsEnabled) { enabled in
                         PrefsManager.shared.stepsEnabled = enabled
                         if enabled {

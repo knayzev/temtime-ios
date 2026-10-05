@@ -1,34 +1,19 @@
 import SwiftUI
 
 private enum RootScreen {
-    case auth
     case profileSetup
     case scheduleSetup
     case main
 }
 
 struct ContentView: View {
-    @State private var screen: RootScreen = {
-        let prefs = PrefsManager.shared
-        if !prefs.isRegistered || !prefs.isLoggedIn {
-            return .auth
-        } else if !prefs.isOnboarded {
-            return .profileSetup
-        } else {
-            return .main
-        }
-    }()
+    // There is no account to sign in to: the app opens on the setup once and on the day itself
+    // ever after. Name and e-mail are optional and live in the profile.
+    @State private var screen: RootScreen = PrefsManager.shared.isOnboarded ? .main : .profileSetup
 
     var body: some View {
         Group {
             switch screen {
-            case .auth:
-                AuthScreen(
-                    startInLoginMode: PrefsManager.shared.isRegistered,
-                    onAuthenticated: {
-                        screen = PrefsManager.shared.isOnboarded ? .main : .profileSetup
-                    }
-                )
             case .profileSetup:
                 ProfileSetupScreen(onNext: { screen = .scheduleSetup })
             case .scheduleSetup:
@@ -37,10 +22,7 @@ struct ContentView: View {
                     onDone: { screen = .main }
                 )
             case .main:
-                MainTabView(onLogout: {
-                    PrefsManager.shared.isLoggedIn = false
-                    screen = .auth
-                })
+                MainTabView()
             }
         }
         .tint(AppColors.primary)
@@ -57,7 +39,6 @@ private enum OverlayScreen: String, Identifiable {
 }
 
 private struct MainTabView: View {
-    let onLogout: () -> Void
     @StateObject private var timerViewModel = TimerViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = 0
@@ -83,7 +64,7 @@ private struct MainTabView: View {
                     .tag(2)
                     .tabItem { Label("Статистика", systemImage: "chart.bar.fill") }
 
-                page("Настройки") { SettingsScreen(onLogout: onLogout) }
+                page("Настройки") { SettingsScreen() }
                     .tag(3)
                     .tabItem { Label("Настройки", systemImage: "gearshape.fill") }
 
@@ -191,7 +172,7 @@ private struct MiniTimerBar: View {
             .foregroundColor(phaseColor)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(phaseColor.opacity(0.15))
+            .background(phaseColor.opacity(0.1))
         }
         .buttonStyle(.plain)
     }

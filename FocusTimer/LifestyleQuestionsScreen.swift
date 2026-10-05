@@ -109,8 +109,7 @@ struct LifestyleQuestionsScreen: View {
                     Text("Сгенерировать график")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppColors.primary)
+                .buttonStyle(PrimaryButtonStyle())
             }
             .listRowBackground(Color.clear)
         }
@@ -137,7 +136,7 @@ struct LifestyleQuestionsScreen: View {
                         } label: {
                             Text("\(index + 1)")
                                 .font(.subheadline.bold())
-                                .foregroundColor(index == selectedIndex ? .white : .primary)
+                                .foregroundColor(index == selectedIndex ? AppColors.onPrimary : .primary)
                                 .frame(width: 36, height: 36)
                                 .background(
                                     Circle().fill(index == selectedIndex ? AppColors.primary : AppColors.surface)
@@ -206,8 +205,7 @@ struct LifestyleQuestionsScreen: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppColors.primary)
+                .buttonStyle(PrimaryButtonStyle())
 
                 Button("Изменить ответы") {
                     showResult = false

@@ -112,7 +112,7 @@ struct ProgressBar: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.secondary.opacity(0.18))
+                Capsule().fill(AppColors.track)
                 Capsule()
                     .fill(tint)
                     .frame(width: proxy.size.width * CGFloat(min(max(fraction, 0), 1)))
@@ -122,7 +122,7 @@ struct ProgressBar: View {
     }
 }
 
-/// A modern connected-circle progress stepper for the post-registration setup flow.
+/// A connected-circle progress stepper for the setup flow.
 struct StepperHeader: View {
     let currentStep: Int
     let labels: [String]
@@ -134,21 +134,21 @@ struct StepperHeader: View {
                     let step = index + 1
                     if index > 0 {
                         Rectangle()
-                            .fill(step <= currentStep ? AppColors.primary : Color.secondary.opacity(0.25))
+                            .fill(step <= currentStep ? AppColors.primary : AppColors.track)
                             .frame(height: 2)
                     }
                     ZStack {
                         Circle()
-                            .fill(step <= currentStep ? AppColors.primary : Color.secondary.opacity(0.18))
+                            .fill(step <= currentStep ? AppColors.primary : AppColors.surfaceHigh)
                             .frame(width: 30, height: 30)
                         if step < currentStep {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(AppColors.onPrimary)
                         } else {
                             Text("\(step)")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(step == currentStep ? .white : .secondary)
+                                .foregroundColor(step == currentStep ? AppColors.onPrimary : .secondary)
                         }
                     }
                 }
@@ -184,5 +184,46 @@ struct HeroGlyph: View {
             Text(emoji).font(.system(size: size * 0.42))
         }
         .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Buttons
+
+/// The filled button. Written out rather than `.borderedProminent`, whose label stays white
+/// whatever the tint: on the dark theme, where the accent turns white, the label would vanish.
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        PrimaryButtonBody(configuration: configuration)
+    }
+}
+
+/// A view of its own because the enabled state comes from the environment, and a style reads it
+/// reliably only from inside a view.
+private struct PrimaryButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundColor(AppColors.onPrimary)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(AppColors.primary))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.35)
+    }
+}
+
+/// The secondary action: an outlined pill that does not compete with the filled one.
+struct OutlineButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(AppColors.primary)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 11)
+            .background(Capsule().strokeBorder(AppColors.outline, lineWidth: 1))
+            .contentShape(Capsule())
+            .opacity(configuration.isPressed ? 0.6 : 1)
     }
 }

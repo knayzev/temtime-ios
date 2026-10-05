@@ -148,7 +148,7 @@ struct StatsScreen: View {
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
-                                ProgressBar(fraction: Double(item.seconds) / Double(largest), tint: AppColors.primary)
+                                ProgressBar(fraction: Double(item.seconds) / Double(largest), tint: AppColors.accent)
                             }
                             .padding(.vertical, 2)
                         }
@@ -250,7 +250,11 @@ private struct StatsCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(AppColors.surface))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(AppColors.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(AppColors.hairline, lineWidth: 1)
+        )
     }
 }
 
@@ -276,7 +280,7 @@ private struct AchievementRow: View {
                 .foregroundColor(achievement.unlocked ? AppColors.restColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Text(achievement.label)
-                ProgressView(value: achievement.progress)
+                ProgressBar(fraction: achievement.progress, tint: AppColors.accent)
             }
         }
         .padding(.vertical, 4)

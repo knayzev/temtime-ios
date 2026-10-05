@@ -6,6 +6,7 @@ struct TimerScreen: View {
     @ObservedObject var viewModel: TimerViewModel
     @StateObject private var stepCounter = LiveStepCounter()
     @State private var showCommentEditor = false
+    @State private var settingsExpanded = false
     @State private var draftComment = ""
 
     @State private var presets = PrefsManager.shared.presets
@@ -30,30 +31,18 @@ struct TimerScreen: View {
             VStack(spacing: 16) {
                 notices
 
-                let categories = PrefsManager.shared.categories
-                if !categories.isEmpty {
-                    Picker("Чем занимаетесь", selection: $viewModel.currentCategory) {
-                        // An entry's title becomes the category while it runs, so it is offered
-                        // even though it is not one of the saved categories.
-                        if !categories.contains(viewModel.currentCategory) && !viewModel.currentCategory.isEmpty {
-                            Text(viewModel.currentCategory).tag(viewModel.currentCategory)
-                        }
-                        ForEach(categories, id: \.self) { category in
-                            Text(category).tag(category)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-
+                // The timer comes first and the schedule right after it: those two are the screen.
+                // Everything that is set once and then left alone is folded into one line between.
                 TimerDial(
                     fraction: Double(viewModel.secondsLeft) / Double(viewModel.phaseTotalSeconds),
                     label: viewModel.phaseLabel,
                     timeText: formatClock(viewModel.secondsLeft),
+                    caption: dialCaption,
                     color: phaseColor
                 )
-                .padding(.vertical, 4)
+                .padding(.top, 4)
 
-                HStack(spacing: 32) {
+                HStack(spacing: 28) {
                     DialAction(systemImage: "stop.fill", label: "Стоп", primary: false) {
                         viewModel.stop()
                     }
@@ -70,38 +59,13 @@ struct TimerScreen: View {
                     }
                 }
 
-                commentSection
-
-                if !viewModel.isRunning {
-                    VStack(alignment: .leading, spacing: 8) {
-                        MinutesInputRow(label: "Время работы", minutes: viewModel.workMinutes) {
-                            viewModel.setWorkMinutes($0)
-                        }
-                        Slider(
-                            value: Binding(
-                                get: { Double(min(max(viewModel.workMinutes, 5), 100)) },
-                                set: { viewModel.setWorkMinutes(Int($0)) }
-                            ),
-                            in: 5...100,
-                            step: 5
-                        )
-
-                        MinutesInputRow(label: "Время отдыха", minutes: viewModel.restMinutes) {
-                            viewModel.setRestMinutes($0)
-                        }
-                        Slider(
-                            value: Binding(
-                                get: { Double(min(max(viewModel.restMinutes, 5), 100)) },
-                                set: { viewModel.setRestMinutes(Int($0)) }
-                            ),
-                            in: 5...100,
-                            step: 5
-                        )
-                    }
-                    .padding(.top, 12)
+                if let steps = stepCounter.steps {
+                    Text("Шаги сегодня: \(steps)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
 
-                Divider().padding(.vertical, 8)
+                settingsCard
 
                 DayScheduleView(
                     items: viewModel.planItems,
@@ -119,10 +83,18 @@ struct TimerScreen: View {
                     onEdit: { editingItem = $0 },
                     onAdd: { addingItem = true }
                 )
+                .padding(.top, 8)
                 if viewModel.planItems.count >= maxPlanItems {
                     Text("Достигнут предел — \(maxPlanItems) пунктов на день")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+
+                // Read once and dismissed, so it sits under the schedule instead of pushing the
+                // timer down.
+                if !wordHidden {
+                    wordCard
+                        .padding(.top, 8)
                 }
             }
             .padding(20)
@@ -184,14 +156,10 @@ struct TimerScreen: View {
         }
     }
 
-    /// What may sit above the dial: the term of the day, a missed-window warning, the presets,
-    /// today's steps and the quote earned by the last finished block.
+    /// What may sit above the dial: a missed-window warning and the quote earned by the last
+    /// finished block. Both are rare, so most of the time the dial is the first thing on screen.
     @ViewBuilder
     private var notices: some View {
-        if !wordHidden {
-            wordCard
-        }
-
         if viewModel.escalationActive {
             HStack {
                 Text("Окно пропущено — вас уведомили")
@@ -201,17 +169,7 @@ struct TimerScreen: View {
                     .font(.subheadline.bold())
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 12).fill(AppColors.coralSoft))
-        }
-
-        if !viewModel.isRunning {
-            presetRow
-        }
-
-        if let steps = stepCounter.steps {
-            Text("Шаги сегодня: \(steps)")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppColors.warningSoft))
         }
 
         if let quote = viewModel.motivationQuote {
@@ -229,7 +187,115 @@ struct TimerScreen: View {
                 .accessibilityLabel("Скрыть")
             }
             .padding(12)
-            .background(RoundedRectangle(cornerRadius: 12).fill(AppColors.tealSoft))
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppColors.accentSoft))
+        }
+    }
+
+    /// The small line under the digits: when the loaded entry is planned for, or that this is a
+    /// break.
+    private var dialCaption: String? {
+        if viewModel.phase == .rest { return "перерыв" }
+        if let plan = viewModel.selectedPlan { return "по плану в \(plan.time)" }
+        return nil
+    }
+
+    /// Everything about the timer that is set once and then left alone — presets, lengths,
+    /// category, comment — folded into one line, so the day's schedule sits right under the
+    /// controls. The line itself says what is set, so it rarely needs opening.
+    private var settingsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    settingsExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 18, weight: .medium))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Настройка таймера")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Работа \(viewModel.workMinutes) мин · отдых \(viewModel.restMinutes) мин")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: settingsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(settingsExpanded ? "Свернуть" : "Развернуть")
+
+            if settingsExpanded {
+                if !viewModel.isRunning {
+                    presetRow
+                }
+                categoryPicker
+                if viewModel.isRunning {
+                    Text("Длительность можно менять, когда таймер стоит")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    durationControls
+                }
+                commentSection
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(AppColors.surface))
+    }
+
+    @ViewBuilder
+    private var categoryPicker: some View {
+        let categories = PrefsManager.shared.categories
+        if !categories.isEmpty {
+            HStack {
+                Text("Чем занимаетесь")
+                Spacer()
+                Picker("Чем занимаетесь", selection: $viewModel.currentCategory) {
+                    // An entry's title becomes the category while it runs, so it is offered
+                    // even though it is not one of the saved categories.
+                    if !categories.contains(viewModel.currentCategory) && !viewModel.currentCategory.isEmpty {
+                        Text(viewModel.currentCategory).tag(viewModel.currentCategory)
+                    }
+                    ForEach(categories, id: \.self) { category in
+                        Text(category).tag(category)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+        }
+    }
+
+    private var durationControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            MinutesInputRow(label: "Время работы", minutes: viewModel.workMinutes) {
+                viewModel.setWorkMinutes($0)
+            }
+            Slider(
+                value: Binding(
+                    get: { Double(min(max(viewModel.workMinutes, 5), 100)) },
+                    set: { viewModel.setWorkMinutes(Int($0)) }
+                ),
+                in: 5...100,
+                step: 5
+            )
+
+            MinutesInputRow(label: "Время отдыха", minutes: viewModel.restMinutes) {
+                viewModel.setRestMinutes($0)
+            }
+            Slider(
+                value: Binding(
+                    get: { Double(min(max(viewModel.restMinutes, 5), 100)) },
+                    set: { viewModel.setRestMinutes(Int($0)) }
+                ),
+                in: 5...100,
+                step: 5
+            )
         }
     }
 
@@ -238,7 +304,7 @@ struct TimerScreen: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("СЛОВО ДНЯ")
                     .font(.caption2.weight(.semibold))
-                    .foregroundColor(AppColors.restColor)
+                    .foregroundColor(AppColors.onAccentSoft)
                 Text(term.word)
                     .font(.headline)
                 Text(term.meaning)
@@ -258,7 +324,7 @@ struct TimerScreen: View {
             .accessibilityLabel("Скрыть до завтра")
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(AppColors.tealSoft))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(AppColors.accentSoft))
     }
 
     private var presetRow: some View {
@@ -283,8 +349,9 @@ struct TimerScreen: View {
                     Text("+ Добавить")
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(AppColors.primarySoft)
-                        .foregroundColor(AppColors.primary)
+                        .font(.subheadline.weight(.semibold))
+                        .background(AppColors.primary)
+                        .foregroundColor(AppColors.onPrimary)
                         .clipShape(Capsule())
                 }
             }
@@ -328,8 +395,7 @@ struct TimerScreen: View {
                         viewModel.currentComment = draftComment
                         showCommentEditor = false
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppColors.primary)
+                    .buttonStyle(PrimaryButtonStyle())
                 }
             }
         }
@@ -337,20 +403,22 @@ struct TimerScreen: View {
 }
 
 /// The countdown as a ring that drains over the phase. `fraction` is the share of the phase still
-/// left, so a full ring means the phase has just begun.
+/// left, so a full ring means the phase has just begun. `caption` is the small line under the
+/// digits.
 private struct TimerDial: View {
     let fraction: Double
     let label: String
     let timeText: String
+    let caption: String?
     let color: Color
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(color.opacity(0.15), lineWidth: 18)
+                .stroke(color.opacity(0.12), lineWidth: 14)
             Circle()
                 .trim(from: 0, to: CGFloat(min(max(fraction, 0), 1)))
-                .stroke(color, style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 // Animating the sweep keeps the ring from stepping a visible notch every second.
                 .animation(.easeInOut(duration: 0.7), value: fraction)
@@ -360,13 +428,23 @@ private struct TimerDial: View {
                     .foregroundColor(color)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
+                    // Only the title is inset: the digits need the width for a three-digit count.
+                    .padding(.horizontal, 34)
                 Text(timeText)
                     .font(.system(size: 56, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if let caption {
+                    Text(caption)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
-        .frame(width: 248, height: 248)
+        // The stroke is centred on the circle's edge, so half of it would fall outside the frame.
+        .padding(7)
+        .frame(width: 232, height: 232)
     }
 }
 
@@ -384,9 +462,9 @@ private struct DialAction: View {
                 action()
             } label: {
                 Image(systemName: systemImage)
-                    .font(.system(size: primary ? 30 : 22, weight: .semibold))
-                    .foregroundColor(primary ? .white : .primary)
-                    .frame(width: primary ? 76 : 58, height: primary ? 76 : 58)
+                    .font(.system(size: primary ? 28 : 20, weight: .semibold))
+                    .foregroundColor(primary ? AppColors.onPrimary : AppColors.primary)
+                    .frame(width: primary ? 72 : 56, height: primary ? 72 : 56)
                     .background(Circle().fill(primary ? AppColors.primary : AppColors.surface))
             }
             .buttonStyle(.plain)
@@ -447,8 +525,10 @@ private struct PresetChip: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(AppColors.surface)
-        .clipShape(Capsule())
+        // White with a hairline: the chips sit on the grey settings card, where a grey chip
+        // would disappear.
+        .background(Capsule().fill(AppColors.card))
+        .overlay(Capsule().strokeBorder(AppColors.hairline, lineWidth: 1))
     }
 }
 

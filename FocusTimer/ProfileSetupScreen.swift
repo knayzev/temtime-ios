@@ -4,8 +4,8 @@ import SwiftUI
 private let genderMale = "Мужской"
 private let genderFemale = "Женский"
 
-/// Step one: who the plan is for. Name and surname already come from registration, so this asks
-/// only what the plan and the advice engine need.
+/// Step one, and the first screen a new user sees: who the plan is for. It asks only what the plan
+/// and the advice engine need. Name and e-mail are optional and are filled in later, in the profile.
 struct ProfileSetupScreen: View {
     let onNext: () -> Void
 
@@ -24,10 +24,26 @@ struct ProfileSetupScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // The app opens here, so this is also where it says what it is.
+                HStack(spacing: 12) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(AppColors.onPrimary)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AppColors.primary)
+                        )
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("EPV")
+                            .font(.title3.bold())
+                        Text("Таймер и план на день")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 StepperHeader(currentStep: 1, labels: ["О себе", "Расписание", "Готово"])
                     .padding(.bottom, 4)
-
-                HeroGlyph(emoji: "👤", size: 72)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Расскажите о себе")
@@ -84,16 +100,21 @@ struct ProfileSetupScreen: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppColors.primary)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canContinue)
                 .padding(.top, 8)
 
-                if !canContinue {
-                    Text("Выберите пол и укажите возраст, чтобы продолжить")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                VStack(spacing: 8) {
+                    if !canContinue {
+                        Text("Выберите пол и укажите возраст, чтобы продолжить")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Text("Имя и почту можно указать позже в профиле — по желанию.")
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                 }
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
             .padding(24)
         }
@@ -140,7 +161,15 @@ private struct GenderOption: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(selected ? AppColors.primarySoft : AppColors.surface)
+                    .fill(selected ? AppColors.primarySoft : AppColors.card)
+            )
+            // The border carries the choice: a grey hairline at rest, black once picked.
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(
+                        selected ? AppColors.primary : AppColors.hairline,
+                        lineWidth: selected ? 1.5 : 1
+                    )
             )
         }
         .buttonStyle(.plain)
