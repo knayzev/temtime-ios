@@ -136,7 +136,8 @@ private struct SavedTimer: Codable {
 /// iOS suspends an app shortly after it leaves the screen, so nothing here can rely on ticking:
 /// the countdown is measured against the moment the phase ends, the state is saved on every
 /// change, and the upcoming phase changes are handed to the system as local notifications. When
-/// the app comes back, every change that fell due in the meantime is applied in one go.
+/// the app comes back, the changes that fell due in the meantime are applied in one go — as far
+/// as those notifications reached, and no further.
 @MainActor
 final class TimerViewModel: ObservableObject {
     @Published private(set) var phase: TimerPhase = .work
@@ -428,21 +429,42 @@ final class TimerViewModel: ObservableObject {
     /// Rolls the timer forward over every phase change that is already due. A suspended app does
     /// not tick, so on return several may have passed; only one that has just happened, with the
     /// app on screen, gets the sound and the voice — the notification already announced the rest.
+    ///
+    /// The timer runs unattended only as far as its notifications reach. Work and rest alternate
+    /// without end, so a timer forgotten for hours would otherwise come back with a day of
+    /// sessions nobody sat through and every entry of the plan ticked off. Past the last phase
+    /// change that was announced, it stops and waits at the start of the next phase.
     private func catchUp(alertIfJustNow: Bool) {
         let now = Date()
-        var changed = false
+        var applied = 0
         while isRunning, let end = endDate, end <= now {
+            if applied == NotificationScheduler.slots {
+                haltAfterUnattendedRun()
+                break
+            }
             let live = alertIfJustNow && now.timeIntervalSince(end) < 3
             finishPhase(endedAt: end, alert: live)
-            changed = true
+            applied += 1
         }
         if isRunning, let end = endDate {
             secondsLeft = max(0, Int(ceil(end.timeIntervalSince(now))))
         }
-        if changed {
+        if applied > 0 {
             save()
             scheduleNotifications()
         }
+    }
+
+    /// Leaves the timer stopped at a fresh phase, with nothing recorded for the phase that was
+    /// under way: nobody was told it had ended, so it does not count as done.
+    private func haltAfterUnattendedRun() {
+        stopTicker()
+        isRunning = false
+        endDate = nil
+        sessionStart = nil
+        escalationDeadline = nil
+        announcedThisPhase = false
+        secondsLeft = phaseTotalSeconds
     }
 
     private func finishPhase(endedAt: Date, alert: Bool) {
