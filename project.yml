@@ -15,6 +15,11 @@ targets:
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
         CFBundleDisplayName: EPV
+        # XcodeGen writes these two as the constants "1.0" and "1" unless told otherwise, and App Store
+        # Connect refuses a build number it has already seen. Tied to the build settings, CI can
+        # number each upload by its run.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSMotionUsageDescription: Используется для подсчёта шагов в разделе «Настройки».

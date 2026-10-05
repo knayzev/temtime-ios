@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Both jobs publish to rolling releases, so a newer push replaces a run that is still going —
+# otherwise an older run finishing last would leave the older build published.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Unsigned builds, needing no Apple account: a simulator .app for appetize.io and a device .ipa
   # for Sideloadly, which signs it with the user's own Apple ID at install time.
